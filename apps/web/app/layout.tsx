@@ -3,14 +3,15 @@ import { Geist, Geist_Mono, Inter } from "next/font/google"
 
 import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@workspace/ui/lib/utils";
+import { cn } from "@workspace/ui/lib/utils"
 
 export const metadata: Metadata = {
   title: {
     default: "Open Historia",
     template: "%s · Open Historia",
   },
-  description: "A grand strategy sandbox game. Open source alternative to Pax Historia.",
+  description:
+    "A grand strategy sandbox game. Open source alternative to Pax Historia.",
   applicationName: "Open Historia",
   openGraph: {
     title: "Open Historia",
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   },
 }
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'})
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
@@ -39,7 +40,12 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
+      className={cn(
+        "antialiased",
+        fontMono.variable,
+        "font-sans",
+        inter.variable
+      )}
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>
