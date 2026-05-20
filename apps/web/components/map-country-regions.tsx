@@ -14,6 +14,50 @@ const GeoJSON = dynamic(
   { ssr: false }
 )
 
+export type MapSelection =
+  | { type: "country"; name: string; iso2?: string; iso3?: string }
+  | { type: "region"; name: string; country: string }
+  | { type: "city"; name: string; country: string; population?: number }
+
+interface MapSelectionContextValue {
+  selected: MapSelection | null
+  setSelected: (value: MapSelection | null) => void
+}
+
+const MapSelectionContext = createContext<MapSelectionContextValue | null>(null)
+
+export function CountrySelectionProvider({ children }: { children: ReactNode }) {
+  const [selected, setSelected] = useState<MapSelection | null>(null)
+  return (
+    <MapSelectionContext.Provider value={{ selected, setSelected }}>
+      {children}
+    </MapSelectionContext.Provider>
+  )
+}
+
+export function useMapSelection() {
+  const ctx = useContext(MapSelectionContext)
+  if (!ctx) {
+    throw new Error(
+      "useMapSelection must be used within CountrySelectionProvider"
+    )
+  }
+  return ctx
+}
+
+// Back-compat alias for label component.
+export const useCountrySelection = (): {
+  selected: { name: string } | null
+  setSelected: (value: { name: string; iso2?: string; iso3?: string } | null) => void
+} => {
+  const { selected, setSelected } = useMapSelection()
+  return {
+    selected: selected && selected.type === "country" ? selected : null,
+    setSelected: (value) =>
+      setSelected(value ? { type: "country", ...value } : null),
+  }
+}
+
 interface CountryProperties {
   ADMIN?: string
   NAME?: string
@@ -23,40 +67,7 @@ interface CountryProperties {
 
 type CountryFeature = Feature<Geometry, CountryProperties>
 
-interface SelectedCountry {
-  name: string
-  iso2?: string
-  iso3?: string
-}
-
-interface CountrySelectionContextValue {
-  selected: SelectedCountry | null
-  setSelected: (value: SelectedCountry | null) => void
-}
-
-const CountrySelectionContext =
-  createContext<CountrySelectionContextValue | null>(null)
-
-export function CountrySelectionProvider({ children }: { children: ReactNode }) {
-  const [selected, setSelected] = useState<SelectedCountry | null>(null)
-  return (
-    <CountrySelectionContext.Provider value={{ selected, setSelected }}>
-      {children}
-    </CountrySelectionContext.Provider>
-  )
-}
-
-export function useCountrySelection() {
-  const ctx = useContext(CountrySelectionContext)
-  if (!ctx) {
-    throw new Error(
-      "useCountrySelection must be used within CountrySelectionProvider"
-    )
-  }
-  return ctx
-}
-
-const baseStyle: PathOptions = {
+const countryBase: PathOptions = {
   fillColor: "#c9a05c",
   fillOpacity: 0,
   color: "#c9a05c",
@@ -64,17 +75,17 @@ const baseStyle: PathOptions = {
   opacity: 0,
 }
 
-const hoverStyle: PathOptions = {
+const countryHover: PathOptions = {
   fillColor: "#e8cf9c",
-  fillOpacity: 0.18,
+  fillOpacity: 0.12,
   color: "#e8cf9c",
-  weight: 1.5,
-  opacity: 0.9,
+  weight: 1,
+  opacity: 0.7,
 }
 
-const selectedStyle: PathOptions = {
+const countrySelected: PathOptions = {
   fillColor: "#e8cf9c",
-  fillOpacity: 0.28,
+  fillOpacity: 0.22,
   color: "#f0d89c",
   weight: 2,
   opacity: 1,
@@ -85,7 +96,7 @@ export function MapCountryRegions() {
     Geometry,
     CountryProperties
   > | null>(null)
-  const { selected, setSelected } = useCountrySelection()
+  const { selected, setSelected } = useMapSelection()
 
   useEffect(() => {
     let cancelled = false
@@ -105,21 +116,25 @@ export function MapCountryRegions() {
   const onEachFeature = (feature: CountryFeature, layer: Layer) => {
     const props = feature.properties ?? {}
     const name = props.ADMIN ?? props.NAME ?? "Unknown"
-    const iso2 = props.ISO_A2 && props.ISO_A2 !== "-99" ? props.ISO_A2 : undefined
-    const iso3 = props.ISO_A3 && props.ISO_A3 !== "-99" ? props.ISO_A3 : undefined
+    const iso2 =
+      props.ISO_A2 && props.ISO_A2 !== "-99" ? props.ISO_A2 : undefined
+    const iso3 =
+      props.ISO_A3 && props.ISO_A3 !== "-99" ? props.ISO_A3 : undefined
     const isSelected = () =>
-      selected !== null && selected.name === name
+      selected !== null &&
+      selected.type === "country" &&
+      selected.name === name
     const pathLayer = layer as L.Path
 
     layer.on({
       mouseover: () => {
-        if (!isSelected()) pathLayer.setStyle(hoverStyle)
+        if (!isSelected()) pathLayer.setStyle(countryHover)
       },
       mouseout: () => {
-        if (!isSelected()) pathLayer.setStyle(baseStyle)
+        if (!isSelected()) pathLayer.setStyle(countryBase)
       },
       click: (event: LeafletMouseEvent) => {
-        setSelected({ name, iso2, iso3 })
+        setSelected({ type: "country", name, iso2, iso3 })
         event.originalEvent.stopPropagation()
       },
     })
@@ -129,28 +144,65 @@ export function MapCountryRegions() {
     <GeoJSON
       data={data}
       style={(feature) => {
-        if (!feature) return baseStyle
+        if (!feature) return countryBase
         const name =
           (feature.properties as CountryProperties).ADMIN ??
           (feature.properties as CountryProperties).NAME
-        return selected && selected.name === name ? selectedStyle : baseStyle
+        return selected &&
+          selected.type === "country" &&
+          selected.name === name
+          ? countrySelected
+          : countryBase
       }}
       onEachFeature={onEachFeature}
-      key={selected?.name ?? "none"}
+      key={selected?.type === "country" ? selected.name : "none"}
     />
   )
 }
 
+function selectionLabel(selected: MapSelection): {
+  primary: string
+  secondary?: string
+} {
+  if (selected.type === "country") return { primary: selected.name }
+  if (selected.type === "region")
+    return { primary: selected.name, secondary: selected.country }
+  return {
+    primary: selected.name,
+    secondary: selected.population
+      ? `${selected.country} · ${compactInt(selected.population)} pop`
+      : selected.country,
+  }
+}
+
+function compactInt(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
+  return `${n}`
+}
+
 export function SelectedCountryIndicator() {
-  const { selected, setSelected } = useCountrySelection()
+  const { selected, setSelected } = useMapSelection()
   if (!selected) return null
+
+  const { primary, secondary } = selectionLabel(selected)
 
   return (
     <MapControlContainer className="top-2 left-1/2 z-[1000] -translate-x-1/2">
       <div className="flex items-center gap-2 rounded-md border bg-background/85 px-3 py-1.5 shadow-lg backdrop-blur-sm">
-        <span className="font-sans text-xs font-semibold uppercase tracking-[0.15em] text-primary">
-          {selected.name}
+        <span className="rounded-sm bg-primary/15 px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">
+          {selected.type}
         </span>
+        <div className="flex flex-col leading-tight">
+          <span className="font-sans text-xs font-semibold uppercase tracking-[0.12em] text-foreground">
+            {primary}
+          </span>
+          {secondary && (
+            <span className="font-sans text-[10px] text-muted-foreground">
+              {secondary}
+            </span>
+          )}
+        </div>
         <Button
           type="button"
           size="icon-sm"
