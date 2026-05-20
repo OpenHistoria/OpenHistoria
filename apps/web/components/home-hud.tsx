@@ -1,6 +1,8 @@
 import Image from "next/image"
 import type { ReactNode } from "react"
 
+import { PresidentialActionsButton } from "@/components/presidential-actions-button"
+
 interface HomeHudProps {
   topLeft?: ReactNode
   topRight?: ReactNode
@@ -54,25 +56,6 @@ function HomeHudCharacter() {
       <FrenchFlag className="absolute bottom-2 left-2 h-8 w-auto drop-shadow-md" />
       <PresidentialActionsButton />
     </div>
-  )
-}
-
-function PresidentialActionsButton() {
-  return (
-    <button
-      type="button"
-      aria-label="Presidential actions"
-      title="Presidential actions"
-      className="group absolute bottom-2 left-full ml-2 size-12 cursor-pointer rounded-md transition-transform hover:scale-105 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Image
-        src="/icons/presidential-actions.png"
-        alt=""
-        width={200}
-        height={200}
-        className="size-full object-contain drop-shadow-md"
-      />
-    </button>
   )
 }
 

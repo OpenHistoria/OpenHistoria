@@ -6,6 +6,7 @@ import {
   loadGame,
   saveGame,
   type GameSpeed,
+  type Project,
 } from "@workspace/engine"
 import {
   createContext,
@@ -20,6 +21,8 @@ import {
 interface GameActions {
   setSpeed: (speed: GameSpeed) => void
   togglePause: () => void
+  addProject: (project: Project) => void
+  removeProject: (id: string) => void
 }
 
 interface GameContextValue {
@@ -30,6 +33,8 @@ interface GameContextValue {
 const noopActions: GameActions = {
   setSpeed: () => {},
   togglePause: () => {},
+  addProject: () => {},
+  removeProject: () => {},
 }
 
 const GameContext = createContext<GameContextValue>({
@@ -69,6 +74,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const addProject = useCallback((project: Project) => {
+    setGame((current) => {
+      if (!current) return current
+      const next = current.addProject(project)
+      saveGame(next)
+      return next
+    })
+  }, [])
+
+  const removeProject = useCallback((id: string) => {
+    setGame((current) => {
+      if (!current) return current
+      const next = current.removeProject(id)
+      saveGame(next)
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     if (!game || game.paused) return
     const intervalMs = SPEED_MS_PER_DAY[game.speed]
@@ -84,8 +107,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [game?.speed, game?.paused, game])
 
   const value = useMemo<GameContextValue>(
-    () => ({ game, actions: { setSpeed, togglePause } }),
-    [game, setSpeed, togglePause]
+    () => ({
+      game,
+      actions: { setSpeed, togglePause, addProject, removeProject },
+    }),
+    [game, setSpeed, togglePause, addProject, removeProject]
   )
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>

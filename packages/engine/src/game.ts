@@ -1,3 +1,5 @@
+import type { Project } from "./projects"
+
 export type NationCode = "FR"
 export type CharacterId = "macron"
 export type GameSpeed = 1 | 2 | 3 | 4 | 5
@@ -18,6 +20,7 @@ export interface GameSnapshot {
   startedAt: string
   speed: GameSpeed
   paused: boolean
+  projects: Project[]
 }
 
 interface GameFields {
@@ -27,6 +30,7 @@ interface GameFields {
   startedAt: Date
   speed: GameSpeed
   paused: boolean
+  projects: readonly Project[]
 }
 
 export class Game {
@@ -36,6 +40,7 @@ export class Game {
   readonly startedAt: Date
   readonly speed: GameSpeed
   readonly paused: boolean
+  readonly projects: readonly Project[]
 
   constructor(init: GameFields) {
     this.nation = init.nation
@@ -44,6 +49,7 @@ export class Game {
     this.startedAt = init.startedAt
     this.speed = init.speed
     this.paused = init.paused
+    this.projects = init.projects
   }
 
   static createNew(): Game {
@@ -55,6 +61,7 @@ export class Game {
       startedAt: now,
       speed: 1,
       paused: true,
+      projects: [],
     })
   }
 
@@ -66,6 +73,7 @@ export class Game {
       startedAt: this.startedAt,
       speed: this.speed,
       paused: this.paused,
+      projects: this.projects,
       ...overrides,
     })
   }
@@ -74,6 +82,14 @@ export class Game {
     return this.with({
       date: new Date(this.date.getTime() + days * 86_400_000),
     })
+  }
+
+  addProject(project: Project): Game {
+    return this.with({ projects: [...this.projects, project] })
+  }
+
+  removeProject(id: string): Game {
+    return this.with({ projects: this.projects.filter((p) => p.id !== id) })
   }
 
   toSnapshot(): GameSnapshot {
@@ -85,6 +101,7 @@ export class Game {
       startedAt: this.startedAt.toISOString(),
       speed: this.speed,
       paused: this.paused,
+      projects: [...this.projects],
     }
   }
 
@@ -96,6 +113,10 @@ export class Game {
       startedAt: new Date(snapshot.startedAt),
       speed: snapshot.speed ?? 1,
       paused: snapshot.paused ?? true,
+      projects: (snapshot.projects ?? []).map((p) => ({
+        ...p,
+        expectedDurationDays: p.expectedDurationDays ?? 365,
+      })),
     })
   }
 }

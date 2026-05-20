@@ -10,6 +10,7 @@ import {
 } from "@workspace/ui/components/map"
 
 import { HomeHud } from "@/components/home-hud"
+import { ProjectMarkers } from "@/components/project-markers"
 import { TimeControls } from "@/components/time-controls"
 
 export function HomeMap() {
@@ -25,6 +26,7 @@ export function HomeMap() {
       <MapZoomControl position="top-2 left-64" />
       <MapFullscreenControl position="top-2 right-2" />
       <MapLocateControl position="top-11 right-2" />
+      <ProjectMarkers />
       <HomeHud bottomRight={<TimeControls />} />
     </Map>
   )

@@ -5,6 +5,14 @@ export type {
   GameSpeed,
   NationCode,
 } from "./game"
+export { getProjectProgress } from "./projects"
+export type {
+  Project,
+  ProjectKind,
+  ProjectLocation,
+  ProjectProgress,
+  ProjectSnapshot,
+} from "./projects"
 export { clearGame, loadGame, saveGame } from "./storage"
 export { CountryStatsProvider } from "./country-stats"
 export type {
