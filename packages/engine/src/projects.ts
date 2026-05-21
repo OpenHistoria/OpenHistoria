@@ -14,7 +14,14 @@ export interface ProjectLocation {
   longitude: number
 }
 
-export interface Project {
+export interface ProjectEconomics {
+  upfrontCost: number
+  monthlyCost: number
+  completionApproval: number
+  completionGdp: number
+}
+
+export interface Project extends ProjectEconomics {
   id: string
   kind: ProjectKind
   name: string
@@ -56,5 +63,50 @@ export function getProjectProgress(
     expectedEndAt,
     elapsedDays,
     remainingDays,
+  }
+}
+
+interface KindEconomics {
+  upfrontPerDay: number
+  monthlyPerDay: number
+  baseApproval: number
+  gdpPerDay: number
+}
+
+const KIND_ECONOMICS: Record<ProjectKind, KindEconomics> = {
+  "construction:nuclear": { upfrontPerDay: 6, monthlyPerDay: 1.2, baseApproval: 4, gdpPerDay: 8 },
+  "construction:industrial": { upfrontPerDay: 2.5, monthlyPerDay: 0.6, baseApproval: 3, gdpPerDay: 5 },
+  "construction:infrastructure": { upfrontPerDay: 3, monthlyPerDay: 0.4, baseApproval: 5, gdpPerDay: 4 },
+  "construction:military": { upfrontPerDay: 4, monthlyPerDay: 0.8, baseApproval: 2, gdpPerDay: 1.5 },
+  "construction:civilian": { upfrontPerDay: 1.8, monthlyPerDay: 0.3, baseApproval: 6, gdpPerDay: 2 },
+  diplomacy: { upfrontPerDay: 0.4, monthlyPerDay: 0.05, baseApproval: 3, gdpPerDay: 0.5 },
+  economic: { upfrontPerDay: 1.5, monthlyPerDay: 0.2, baseApproval: 2, gdpPerDay: 6 },
+  other: { upfrontPerDay: 1, monthlyPerDay: 0.2, baseApproval: 2, gdpPerDay: 1 },
+}
+
+export function defaultProjectEconomics(
+  kind: ProjectKind,
+  durationDays: number
+): ProjectEconomics {
+  const k = KIND_ECONOMICS[kind] ?? KIND_ECONOMICS.other
+  const days = Math.max(1, durationDays)
+  return {
+    upfrontCost: Math.round(k.upfrontPerDay * days),
+    monthlyCost: Math.round(k.monthlyPerDay * days * 10) / 10,
+    completionApproval: Math.round(k.baseApproval + Math.log10(days) * 1.5),
+    completionGdp: Math.round(k.gdpPerDay * days),
+  }
+}
+
+export function withEconomicsDefaults(
+  project: Omit<Project, keyof ProjectEconomics> & Partial<ProjectEconomics>
+): Project {
+  const defaults = defaultProjectEconomics(project.kind, project.expectedDurationDays)
+  return {
+    ...project,
+    upfrontCost: project.upfrontCost ?? defaults.upfrontCost,
+    monthlyCost: project.monthlyCost ?? defaults.monthlyCost,
+    completionApproval: project.completionApproval ?? defaults.completionApproval,
+    completionGdp: project.completionGdp ?? defaults.completionGdp,
   }
 }

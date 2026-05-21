@@ -9,6 +9,7 @@ import {
   MapZoomControl,
 } from "@workspace/ui/components/map"
 
+import { BriefingPanel } from "@/components/briefing-panel"
 import { HomeHud } from "@/components/home-hud"
 import { MapCities } from "@/components/map-cities"
 import { MapCountryLabels } from "@/components/map-country-labels"
@@ -52,7 +53,14 @@ export function HomeMap() {
         <MapLocateControl position="top-11 right-2" />
         <ProjectMarkers />
         <SelectedCountryIndicator />
-        <HomeHud bottomRight={<TimeControls />} />
+        <HomeHud
+          bottomRight={
+            <div className="flex flex-col items-end gap-2">
+              <BriefingPanel />
+              <TimeControls />
+            </div>
+          }
+        />
       </CountrySelectionProvider>
     </Map>
   )

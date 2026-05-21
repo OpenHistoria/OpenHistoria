@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mozaik-ai/core": "^3.10.2",
     "@openrouter/ai-sdk-provider": "^2.9.0",
     "@workspace/engine": "*",
     "@workspace/ui": "*",

@@ -4,6 +4,7 @@ import { Chakra_Petch, Inter, JetBrains_Mono } from "next/font/google"
 import "@workspace/ui/globals.css"
 import { GameProvider } from "@/components/game-provider"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 
 export const metadata: Metadata = {
@@ -57,7 +58,10 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <GameProvider>{children}</GameProvider>
+          <GameProvider>
+            {children}
+            <Toaster position="top-center" richColors closeButton />
+          </GameProvider>
         </ThemeProvider>
       </body>
     </html>
