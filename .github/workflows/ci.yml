@@ -38,3 +38,17 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Coverage (engine)
+        if: success()
+        continue-on-error: true
+        run: npm run test:coverage --workspace=@workspace/engine
+
+      - name: Upload coverage artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-coverage
+          path: packages/engine/coverage
+          retention-days: 7
+          if-no-files-found: ignore

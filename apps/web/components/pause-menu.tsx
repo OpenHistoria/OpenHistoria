@@ -20,6 +20,8 @@ import {
   SunIcon,
   TrophyIcon,
   UploadIcon,
+  Volume2Icon,
+  VolumeXIcon,
   type LucideIcon,
 } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -30,6 +32,7 @@ import { useGame, useGameActions } from "@/components/game-provider"
 import { useHudState } from "@/components/hud-state"
 import { useMapLayers } from "@/components/map-layers-state"
 import { TrophyRoom } from "@/components/trophy-room"
+import { isMuted, setMuted, sfx } from "@/lib/sfx"
 
 export function PauseMenu() {
   const { pauseMenuOpen, closePauseMenu } = useHudState()
@@ -38,6 +41,7 @@ export function PauseMenu() {
   const [debugOpen, setDebugOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [trophyOpen, setTrophyOpen] = useState(false)
+  const [muted, setMutedState] = useState<boolean>(() => isMuted())
 
   function handleOpenChange(open: boolean) {
     if (open) return
@@ -152,6 +156,19 @@ export function PauseMenu() {
               >
                 <TrophyIcon />
                 Achievements
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const next = !muted
+                  setMuted(next)
+                  setMutedState(next)
+                  if (!next) sfx.click()
+                }}
+                aria-pressed={muted}
+              >
+                {muted ? <VolumeXIcon /> : <Volume2Icon />}
+                {muted ? "Sound off" : "Sound on"}
               </Button>
               <ThemePicker />
               <Button

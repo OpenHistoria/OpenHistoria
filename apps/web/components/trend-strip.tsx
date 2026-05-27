@@ -4,10 +4,13 @@ import {
   ArrowDownRightIcon,
   ArrowRightIcon,
   ArrowUpRightIcon,
+  LineChartIcon,
   type LucideIcon,
 } from "lucide-react"
+import { useState } from "react"
 
 import { useGame } from "@/components/game-provider"
+import { HistoryChartDialog } from "@/components/history-chart-dialog"
 
 const MS_PER_DAY = 86_400_000
 
@@ -25,6 +28,7 @@ interface TrendCellProps {
  */
 export function TrendStrip() {
   const game = useGame()
+  const [chartOpen, setChartOpen] = useState(false)
   if (!game) return null
   const history = game.history
   if (history.length < 2) {
@@ -51,7 +55,16 @@ export function TrendStrip() {
   const gdpDelta = last.gdpUsd - base.gdpUsd
 
   return (
-    <div className="grid grid-cols-3 divide-x rounded-tl-md border-t border-l bg-background/85 px-1 py-1 text-[11px] shadow-lg backdrop-blur-sm">
+    <div className="relative grid grid-cols-3 divide-x rounded-tl-md border-t border-l bg-background/85 px-1 py-1 text-[11px] shadow-lg backdrop-blur-sm">
+      <button
+        type="button"
+        onClick={() => setChartOpen(true)}
+        className="absolute top-1 right-1 rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+        aria-label="Open history chart"
+        title="History chart"
+      >
+        <LineChartIcon className="size-3.5" />
+      </button>
       <Cell
         label="Treasury"
         value={`€${Math.round(last.treasury).toLocaleString()}M`}
@@ -76,6 +89,7 @@ export function TrendStrip() {
           format: (n) => `${signed((n / 1_000_000_000).toFixed(1))} B / wk`,
         }}
       />
+      <HistoryChartDialog open={chartOpen} onOpenChange={setChartOpen} />
     </div>
   )
 }

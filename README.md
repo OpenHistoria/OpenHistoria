@@ -1,5 +1,9 @@
 # Open Historia
 
+[![CI](https://github.com/alexisbchz/openhistoria/actions/workflows/ci.yml/badge.svg)](https://github.com/alexisbchz/openhistoria/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 A grand strategy sandbox game built on a tickable, deterministic engine. Open
 source alternative to Pax Historia.
 

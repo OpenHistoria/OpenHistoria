@@ -6,6 +6,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import {
   BanIcon,
   HandshakeIcon,
+  MessageSquareIcon,
   MinusIcon,
   ShoppingCartIcon,
 } from "lucide-react"
@@ -15,6 +16,7 @@ import { CountryFlag } from "@/components/country-flag"
 import { FloatingPanel } from "@/components/floating-panel"
 import { useGame, useGameActions } from "@/components/game-provider"
 import { useHudState } from "@/components/hud-state"
+import { useMapSelection } from "@/components/map-country-regions"
 
 const relDateFmt = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -75,6 +77,7 @@ export function DiplomacyPanel() {
 
 function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) {
   const { signTradeDeal, issueSanctions } = useGameActions()
+  const { setSelected } = useMapSelection()
   const ratio = (row.opinion + 100) / 200 // 0..1
   const color =
     row.opinion >= 30
@@ -150,6 +153,18 @@ function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) 
           </span>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setSelected({ type: "country", name: row.name, iso2: row.code })
+            }
+            title="Open country panel"
+            className="h-6 px-2 text-[10px]"
+          >
+            <MessageSquareIcon className="size-3" />
+            Message
+          </Button>
           <Button
             size="sm"
             variant="outline"

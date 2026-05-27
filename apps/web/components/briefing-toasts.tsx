@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import { toast } from "sonner"
 
 import { useGame } from "@/components/game-provider"
+import { sfx } from "@/lib/sfx"
 
 export function BriefingToasts() {
   const game = useGame()
@@ -26,9 +27,20 @@ export function BriefingToasts() {
     lastIdRef.current = top.id
 
     showToast(top.kind, top.title, top.detail)
+    playForKind(top.kind)
   }, [game?.briefing])
 
   return null
+}
+
+function playForKind(kind: string) {
+  if (kind === "project_completed") {
+    sfx.chime()
+  } else if (kind === "event") {
+    sfx.swoosh()
+  } else if (kind === "warning" || kind === "project_cancelled") {
+    sfx.alert()
+  }
 }
 
 function showToast(kind: string, title: string, detail?: string) {

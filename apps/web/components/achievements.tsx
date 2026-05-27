@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react"
 import { toast } from "sonner"
 
 import { useGame } from "@/components/game-provider"
+import { sfx } from "@/lib/sfx"
 
 export const ACHIEVEMENTS_STORAGE_KEY = "openhistoria:achievements"
 const STORAGE_KEY = ACHIEVEMENTS_STORAGE_KEY
@@ -143,6 +144,7 @@ export function AchievementWatcher() {
         description: ach.description(game),
         duration: 4500,
       })
+      sfx.achievement()
     }
     if (changed) persistUnlocked(unlockedRef.current)
   }, [game])
