@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react"
 
-export type MapLayerKey = "countries" | "regions" | "cities"
+export type MapLayerKey = "countries" | "regions" | "cities" | "opinions"
 export type Basemap = "satellite" | "map"
 
 interface MapLayersValue {
@@ -26,6 +26,7 @@ const DEFAULTS: Record<MapLayerKey, boolean> = {
   countries: true,
   regions: true,
   cities: true,
+  opinions: true,
 }
 
 export function MapLayersProvider({ children }: { children: ReactNode }) {

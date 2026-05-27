@@ -4,6 +4,7 @@ import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import {
   BuildingIcon,
+  HandshakeIcon,
   LandPlotIcon,
   LandmarkIcon,
   MapIcon,
@@ -38,6 +39,11 @@ const TOGGLES: ToggleSpec[] = [
     key: "cities",
     label: "Cities",
     icon: <BuildingIcon className="size-4" />,
+  },
+  {
+    key: "opinions",
+    label: "Opinions",
+    icon: <HandshakeIcon className="size-4" />,
   },
 ]
 

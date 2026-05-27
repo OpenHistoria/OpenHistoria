@@ -65,6 +65,8 @@ export type ReformAgendaId =
   | "fiscal_discipline"
   | "european_leadership"
   | "social_renewal"
+  | "technology_sovereignty"
+  | "security_first"
 
 export interface ReformAgendaDef {
   id: ReformAgendaId
@@ -100,6 +102,22 @@ export const REFORM_AGENDAS: readonly ReformAgendaDef[] = [
     description:
       "Cut unemployment, deliver visible projects, restore household trust.",
     approvalThresholdOnSuccess: 36,
+  },
+  {
+    id: "technology_sovereignty",
+    short: "Tech sovereignty",
+    title: "Build French and European tech sovereignty",
+    description:
+      "Launch nuclear, industrial, or strategic-tech projects. Reduce dependence on US/Chinese supply chains.",
+    approvalThresholdOnSuccess: 38,
+  },
+  {
+    id: "security_first",
+    short: "Security first",
+    title: "Rearm and project power",
+    description:
+      "Strengthen defence, hold the line on order, project credibility abroad. Approval costs are higher.",
+    approvalThresholdOnSuccess: 40,
   },
 ]
 
@@ -241,6 +259,27 @@ const BANKRUPTCY_TREASURY_FLOOR = -500_000 // €-500B
 const BANKRUPTCY_DAYS_TO_LOSE = 30
 const IMPEACHMENT_APPROVAL_FLOOR = 15
 const IMPEACHMENT_DAYS_TO_LOSE = 30
+
+// Player economic actions (sanctions / trade deals). Costs are tuned to feel
+// non-trivial but not bankrupting; the real lever is opinion + the 90-day
+// cooldown via `lastEconomicActionAt`.
+const PLAYER_ECONOMIC_COOLDOWN_DAYS = 90
+const TRADE_DEAL_COST_MILLIONS = 300
+const TRADE_DEAL_GDP_MILLIONS = 1500
+const TRADE_DEAL_OPINION_DELTA = 12
+const SANCTIONS_COST_MILLIONS = 500
+const SANCTIONS_GDP_HIT_MILLIONS = 600
+const SANCTIONS_OPINION_DELTA = -18
+
+function isEconomicallyEligible(
+  lastEconomicActionAt: string | null | undefined,
+  now: Date
+): boolean {
+  if (!lastEconomicActionAt) return true
+  const lastMs = Date.parse(lastEconomicActionAt)
+  if (Number.isNaN(lastMs)) return true
+  return now.getTime() - lastMs >= PLAYER_ECONOMIC_COOLDOWN_DAYS * 86_400_000
+}
 
 function clampApproval(v: number): number {
   return Math.max(0, Math.min(100, v))
@@ -607,6 +646,116 @@ export class Game {
     return this.with({
       relations: { ...this.relations, [key]: next },
       treasury: this.treasury - cost,
+      briefing,
+    })
+  }
+
+  /**
+   * Symmetric counterpart to the AI economic actions: the player can issue
+   * sanctions or sign trade deals with another nation. Each is gated by a
+   * 90-day cooldown tracked through the same `lastEconomicActionAt` field
+   * the AI uses, so a hot quarter can't see sanctions + trade-deal + counter
+   * all in one week.
+   */
+  signTradeDeal(target: string): Game {
+    if (this.gameOver) return this
+    const key = normalizeNationKey(target)
+    if (!key || key === this.nation) return this
+    const current = this.relations[key] ?? DEFAULT_RELATION
+    if (!isEconomicallyEligible(current.lastEconomicActionAt, this.date)) {
+      const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+        kind: "warning",
+        title: `Trade deal with ${key} blocked`,
+        detail: "Another economic action with this nation is too recent.",
+      }))
+      return this.with({ briefing })
+    }
+    // Friendly economic gesture: requires existing goodwill (opinion ≥ 20)
+    // so it's not a free button to spam.
+    if (current.opinion < 20) {
+      const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+        kind: "warning",
+        title: `${key} refuses trade deal`,
+        detail: `Opinion ${current.opinion.toFixed(0)} is too low; talks collapsed.`,
+      }))
+      return this.with({ briefing })
+    }
+    const cost = TRADE_DEAL_COST_MILLIONS
+    if (this.treasury < cost - ADDPROJECT_TREASURY_BUFFER) {
+      const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+        kind: "warning",
+        title: `Trade deal with ${key} blocked`,
+        detail: `Treasury short of €${cost}M.`,
+      }))
+      return this.with({ briefing })
+    }
+    const gdpBoost = TRADE_DEAL_GDP_MILLIONS
+    const stats = bumpGdp(this.stats, gdpBoost * 1_000_000)
+    const next: RelationState = {
+      ...current,
+      opinion: clampOpinion(current.opinion + TRADE_DEAL_OPINION_DELTA),
+      lastInteractionAt: this.date.toISOString(),
+      lastEconomicActionAt: this.date.toISOString(),
+    }
+    const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+      kind: "milestone",
+      title: `Trade deal signed with ${key}`,
+      detail: `−€${cost}M treasury · +€${gdpBoost}M GDP · +${TRADE_DEAL_OPINION_DELTA} opinion`,
+    }))
+    return this.with({
+      relations: { ...this.relations, [key]: next },
+      treasury: this.treasury - cost,
+      stats,
+      briefing,
+    })
+  }
+
+  issueSanctions(target: string): Game {
+    if (this.gameOver) return this
+    const key = normalizeNationKey(target)
+    if (!key || key === this.nation) return this
+    const current = this.relations[key] ?? DEFAULT_RELATION
+    if (!isEconomicallyEligible(current.lastEconomicActionAt, this.date)) {
+      const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+        kind: "warning",
+        title: `Sanctions on ${key} blocked`,
+        detail: "Another economic action with this nation is too recent.",
+      }))
+      return this.with({ briefing })
+    }
+    const cost = SANCTIONS_COST_MILLIONS
+    if (this.treasury < cost - ADDPROJECT_TREASURY_BUFFER) {
+      const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+        kind: "warning",
+        title: `Sanctions on ${key} blocked`,
+        detail: `Treasury short of €${cost}M.`,
+      }))
+      return this.with({ briefing })
+    }
+    // Sanctions: small home-economy hit (retaliation/trade loss) modelled as a
+    // GDP cut, big opinion drop on target. Breaks any existing alliance.
+    const gdpHit = SANCTIONS_GDP_HIT_MILLIONS
+    const stats = bumpGdp(this.stats, -gdpHit * 1_000_000)
+    const allied = false
+    const wasAllied = current.allied
+    const next: RelationState = {
+      ...current,
+      opinion: clampOpinion(current.opinion + SANCTIONS_OPINION_DELTA),
+      allied,
+      lastInteractionAt: this.date.toISOString(),
+      lastEconomicActionAt: this.date.toISOString(),
+    }
+    const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+      kind: "warning",
+      title: `Sanctions imposed on ${key}`,
+      detail:
+        `−€${cost}M treasury · −€${gdpHit}M GDP · ${SANCTIONS_OPINION_DELTA} opinion` +
+        (wasAllied ? " · alliance suspended" : ""),
+    }))
+    return this.with({
+      relations: { ...this.relations, [key]: next },
+      treasury: this.treasury - cost,
+      stats,
       briefing,
     })
   }
@@ -1288,7 +1437,59 @@ export function evaluateReformAgenda(game: Game): boolean {
       const unemployment = game.stats.economy.unemploymentPct
       return completedProjects >= 2 && unemployment <= 8.5
     }
+    case "technology_sovereignty": {
+      // At least two tech-oriented projects completed or in flight.
+      const techKinds = new Set([
+        "construction:nuclear",
+        "construction:industrial",
+      ])
+      const techStarts = game.briefing.filter(
+        (b) =>
+          b.kind === "project_started" &&
+          techKinds.has(extractKindFromTitle(b.title) ?? "")
+      ).length
+      const inflightTech = game.projects.filter((p) =>
+        techKinds.has(p.kind)
+      ).length
+      const total = Math.max(techStarts, inflightTech)
+      return total >= 2 && game.stats.economy.gdpUsd > 3.55e12
+    }
+    case "security_first": {
+      // Allied with at least one of US/GB AND at least one military or
+      // nuclear project completed or in flight.
+      const allied = ["US", "GB"].some(
+        (code) => game.relations[code]?.allied
+      )
+      const securityKinds = new Set([
+        "construction:military",
+        "construction:nuclear",
+      ])
+      const inflight = game.projects.filter((p) =>
+        securityKinds.has(p.kind)
+      ).length
+      const completed = game.briefing.filter(
+        (b) =>
+          b.kind === "project_completed" &&
+          securityKinds.has(extractKindFromTitle(b.title) ?? "")
+      ).length
+      return allied && (inflight + completed) >= 1
+    }
   }
+}
+
+/**
+ * Best-effort: we don't store the kind on completed-project briefings, so we
+ * fall back to title keywords. Used only by the agenda evaluator where false
+ * negatives bias to "agenda failed", an acceptable safe default.
+ */
+function extractKindFromTitle(title: string): string | null {
+  const lower = title.toLowerCase()
+  if (/(nuclear|epr|reactor)/.test(lower)) return "construction:nuclear"
+  if (/(industrial|gigafactory|factory|battery|aerospace)/.test(lower))
+    return "construction:industrial"
+  if (/(military|defense|defence|base|shipyard)/.test(lower))
+    return "construction:military"
+  return null
 }
 
 function makeBriefing(

@@ -23,6 +23,7 @@ import {
   useMapLayers,
 } from "@/components/map-layers-state"
 import { MapStates } from "@/components/map-states"
+import { MapOpinionMarkers } from "@/components/map-opinion-markers"
 import { MapTextureOverlay } from "@/components/map-texture-overlay"
 import { ProjectMarkers } from "@/components/project-markers"
 import { TimeControls } from "@/components/time-controls"
@@ -58,6 +59,7 @@ function ConditionalMapLayers() {
       {visible.regions && <MapStates />}
       {visible.countries && <MapCountryLabels />}
       {visible.cities && <MapCities />}
+      {visible.opinions && <MapOpinionMarkers />}
     </>
   )
 }

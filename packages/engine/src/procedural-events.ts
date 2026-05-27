@@ -202,6 +202,112 @@ const FR_TEMPLATES: ProceduralTemplate[] = [
     ],
     defaultChoiceIndex: 0,
   },
+  {
+    id: "minor-airline-rescue",
+    category: "economy",
+    severity: "medium",
+    weight: 2,
+    cooldownDays: 200,
+    title: "Air France-KLM seeks a bailout",
+    description:
+      "Q3 results crater; the carrier asks for a €1.6B state-backed loan to weather fuel-price shocks.",
+    choices: [
+      {
+        id: "loan",
+        label: "Approve the state-backed loan",
+        effects: { treasury: -1600, approval: 1, debtDelta: 0.05 },
+      },
+      {
+        id: "conditional",
+        label: "Loan with restructuring conditions",
+        effects: { treasury: -900, approval: -1, unemploymentDelta: 0.1 },
+      },
+      {
+        id: "refuse",
+        label: "Refuse; let markets sort it out",
+        effects: { approval: -3, unemploymentDelta: 0.25, gdpDelta: -400 },
+      },
+    ],
+    defaultChoiceIndex: 1,
+  },
+  {
+    id: "minor-academic-strike",
+    category: "social",
+    severity: "low",
+    weight: 2,
+    cooldownDays: 150,
+    title: "Universities strike over budget cuts",
+    description:
+      "CNRS and Sorbonne staff walk out for a week. Symbolic but it dominates news cycles.",
+    choices: [
+      {
+        id: "extra-budget",
+        label: "Add €350M to higher-ed budget",
+        effects: { treasury: -350, approval: 2 },
+      },
+      {
+        id: "dialogue",
+        label: "Open dialogue, change nothing material",
+        effects: { approval: -1 },
+      },
+      {
+        id: "deflect",
+        label: "Blame ministry mismanagement publicly",
+        effects: { approval: -2 },
+      },
+    ],
+    defaultChoiceIndex: 1,
+  },
+  {
+    id: "minor-corruption-probe",
+    category: "scandal",
+    severity: "high",
+    weight: 1,
+    cooldownDays: 300,
+    title: "Anti-corruption probe targets a junior minister",
+    description:
+      "The PNF (Parquet national financier) opens an investigation into one of your junior ministers over a property deal.",
+    choices: [
+      {
+        id: "step-aside",
+        label: "Ask the minister to step aside",
+        effects: { approval: -1 },
+      },
+      {
+        id: "defend",
+        label: "Defend the minister publicly",
+        effects: { approval: -4 },
+      },
+      {
+        id: "reshuffle",
+        label: "Reshuffle the junior ranks of cabinet",
+        effects: { approval: -2, treasury: -100 },
+      },
+    ],
+  },
+  {
+    id: "minor-startup-success",
+    category: "opportunity",
+    severity: "low",
+    weight: 1,
+    cooldownDays: 200,
+    title: "French AI lab raises landmark funding",
+    description:
+      "Mistral-style unicorn closes a €1B round, signalling European tech credibility. Photo-op at Station F.",
+    choices: [
+      {
+        id: "celebrate",
+        label: "Host a state-side ceremony",
+        effects: { approval: 2, gdpDelta: 400 },
+      },
+      {
+        id: "regulate",
+        label: "Use the moment to push AI regulation",
+        effects: { approval: -1, gdpDelta: 200 },
+      },
+    ],
+    defaultChoiceIndex: 0,
+  },
 ]
 
 const TEMPLATES_BY_NATION: Record<NationCode, ProceduralTemplate[]> = {

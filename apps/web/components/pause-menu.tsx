@@ -15,8 +15,13 @@ import {
   CheckIcon,
   CopyIcon,
   DownloadIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
   UploadIcon,
+  type LucideIcon,
 } from "lucide-react"
+import { useTheme } from "next-themes"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -138,6 +143,7 @@ export function PauseMenu() {
               >
                 Reset game
               </Button>
+              <ThemePicker />
               <Button
                 variant="ghost"
                 onClick={() => setDebugOpen((v) => !v)}
@@ -280,6 +286,41 @@ function DebugStat({ label, value }: { label: string; value: string }) {
     <div className="flex gap-2 tabular-nums">
       <span className="w-32 text-muted-foreground">{label}</span>
       <span className="flex-1 break-all font-medium">{value}</span>
+    </div>
+  )
+}
+
+const THEME_OPTIONS: { key: string; label: string; Icon: LucideIcon }[] = [
+  { key: "light", label: "Light", Icon: SunIcon },
+  { key: "dark", label: "Dark", Icon: MoonIcon },
+  { key: "system", label: "System", Icon: MonitorIcon },
+]
+
+function ThemePicker() {
+  const { theme, setTheme } = useTheme()
+  const current = theme ?? "dark"
+  return (
+    <div className="grid grid-cols-3 gap-1 rounded-md border bg-muted/40 p-1">
+      {THEME_OPTIONS.map(({ key, label, Icon }) => {
+        const active = current === key
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTheme(key)}
+            className={
+              "flex items-center justify-center gap-1.5 rounded-sm px-2 py-1 text-xs transition-colors " +
+              (active
+                ? "bg-background font-medium"
+                : "text-muted-foreground hover:bg-background/60")
+            }
+            aria-pressed={active}
+          >
+            <Icon className="size-3.5" />
+            {label}
+          </button>
+        )
+      })}
     </div>
   )
 }

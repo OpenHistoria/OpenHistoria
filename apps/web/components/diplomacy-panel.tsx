@@ -1,13 +1,19 @@
 "use client"
 
 import { AI_NATIONS } from "@workspace/engine"
+import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
-import { HandshakeIcon, MinusIcon } from "lucide-react"
+import {
+  BanIcon,
+  HandshakeIcon,
+  MinusIcon,
+  ShoppingCartIcon,
+} from "lucide-react"
 import { useMemo } from "react"
 
 import { CountryFlag } from "@/components/country-flag"
 import { FloatingPanel } from "@/components/floating-panel"
-import { useGame } from "@/components/game-provider"
+import { useGame, useGameActions } from "@/components/game-provider"
 import { useHudState } from "@/components/hud-state"
 
 const relDateFmt = new Intl.DateTimeFormat("en-US", {
@@ -21,7 +27,10 @@ interface DiplomacyRow {
   opinion: number
   allied: boolean
   lastInteractionAt: string | null
+  lastEconomicActionAt: string | null
 }
+
+const ECONOMIC_COOLDOWN_DAYS = 90
 
 export function DiplomacyPanel() {
   const game = useGame()
@@ -38,11 +47,13 @@ export function DiplomacyPanel() {
         opinion: rel?.opinion ?? 0,
         allied: rel?.allied ?? false,
         lastInteractionAt: rel?.lastInteractionAt ?? null,
+        lastEconomicActionAt: rel?.lastEconomicActionAt ?? null,
       }
     }).sort((a, b) => b.opinion - a.opinion)
   }, [game?.relations])
 
   if (!game) return null
+  const today = game.date.getTime()
   return (
     <FloatingPanel
       open={diplomacyOpen}
@@ -51,18 +62,19 @@ export function DiplomacyPanel() {
       icon={<HandshakeIcon className="size-4" />}
       position={diplomacyPos}
       onPositionChange={setDiplomacyPos}
-      className="w-[360px]"
+      className="w-[400px]"
     >
       <ul className="divide-y">
         {rows.map((r) => (
-          <DiplomacyRowItem key={r.code} row={r} />
+          <DiplomacyRowItem key={r.code} row={r} today={today} />
         ))}
       </ul>
     </FloatingPanel>
   )
 }
 
-function DiplomacyRowItem({ row }: { row: DiplomacyRow }) {
+function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) {
+  const { signTradeDeal, issueSanctions } = useGameActions()
   const ratio = (row.opinion + 100) / 200 // 0..1
   const color =
     row.opinion >= 30
@@ -70,8 +82,23 @@ function DiplomacyRowItem({ row }: { row: DiplomacyRow }) {
       : row.opinion <= -30
         ? "bg-destructive"
         : "bg-amber-500"
+  const lastEcoMs = row.lastEconomicActionAt
+    ? Date.parse(row.lastEconomicActionAt)
+    : null
+  const economicCooldown =
+    lastEcoMs !== null && !Number.isNaN(lastEcoMs)
+      ? Math.max(
+          0,
+          Math.ceil(
+            (lastEcoMs + ECONOMIC_COOLDOWN_DAYS * 86_400_000 - today) /
+              86_400_000
+          )
+        )
+      : 0
+  const canTrade = row.opinion >= 20 && economicCooldown === 0
+  const canSanction = economicCooldown === 0
   return (
-    <li className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-2 text-xs">
+    <li className="grid grid-cols-[auto_1fr] items-center gap-3 px-3 py-2 text-xs">
       <CountryFlag code={row.code} className="h-4 w-auto rounded-[2px] ring-1 ring-black/20" />
       <div className="min-w-0">
         <div className="flex items-baseline gap-1.5">
@@ -112,6 +139,45 @@ function DiplomacyRowItem({ row }: { row: DiplomacyRow }) {
               </span>
             )}
           </span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canTrade}
+            onClick={() => signTradeDeal(row.code)}
+            title={
+              !canTrade && row.opinion < 20
+                ? `Opinion must be ≥ 20 (currently ${row.opinion.toFixed(0)})`
+                : economicCooldown > 0
+                  ? `Cooldown: ${economicCooldown}d`
+                  : "Sign trade deal: −€300M / +€1500M GDP / +12 opinion"
+            }
+            className="h-6 px-2 text-[10px]"
+          >
+            <ShoppingCartIcon className="size-3" />
+            Trade
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canSanction}
+            onClick={() => issueSanctions(row.code)}
+            title={
+              economicCooldown > 0
+                ? `Cooldown: ${economicCooldown}d`
+                : "Sanction: −€500M / −€600M GDP / −18 opinion (breaks alliance)"
+            }
+            className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10"
+          >
+            <BanIcon className="size-3" />
+            Sanction
+          </Button>
+          {economicCooldown > 0 ? (
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              cooldown {economicCooldown}d
+            </span>
+          ) : null}
         </div>
       </div>
     </li>

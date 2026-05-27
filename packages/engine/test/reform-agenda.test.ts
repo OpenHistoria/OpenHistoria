@@ -9,9 +9,10 @@ useDeterministicEngine({
 })
 
 describe("REFORM_AGENDAS", () => {
-  it("exposes three distinct ids", () => {
+  it("exposes at least three distinct ids", () => {
     const ids = new Set(REFORM_AGENDAS.map((a) => a.id))
-    expect(ids.size).toBe(3)
+    expect(ids.size).toBe(REFORM_AGENDAS.length)
+    expect(ids.size).toBeGreaterThanOrEqual(3)
   })
 })
 

@@ -8,8 +8,13 @@ import { useGame, useTickStats } from "@/components/game-provider"
  * Toggle with backtick (`) — surfaces tick-loop perf, RNG/clock state, and a
  * short tail of the briefing so we can see what just changed. Read-only.
  */
+const STORAGE_KEY = "openhistoria:debug-overlay-open"
+
 export function DebugOverlay() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false
+    return window.localStorage.getItem(STORAGE_KEY) === "1"
+  })
   const game = useGame()
   const stats = useTickStats()
 
@@ -30,7 +35,16 @@ export function DebugOverlay() {
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return
       e.preventDefault()
-      setOpen((v) => !v)
+      setOpen((v) => {
+        const next = !v
+        try {
+          if (next) window.localStorage.setItem(STORAGE_KEY, "1")
+          else window.localStorage.removeItem(STORAGE_KEY)
+        } catch {
+          // best-effort; the overlay still works without persistence
+        }
+        return next
+      })
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
@@ -48,7 +62,14 @@ export function DebugOverlay() {
         <span className="font-semibold uppercase tracking-wide">Debug (` to close)</span>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            setOpen(false)
+            try {
+              window.localStorage.removeItem(STORAGE_KEY)
+            } catch {
+              // ignore
+            }
+          }}
           className="text-muted-foreground hover:text-foreground"
           aria-label="Close debug overlay"
         >

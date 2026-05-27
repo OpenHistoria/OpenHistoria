@@ -40,6 +40,8 @@ interface GameActions {
   proposeAlliance: (target: string) => void
   breakAlliance: (target: string) => void
   sendDiplomaticMessage: (args: DiplomaticMessageArgs) => void
+  signTradeDeal: (target: string) => void
+  issueSanctions: (target: string) => void
   resolveEventChoice: (eventId: string, choiceId: string) => void
   setReformAgenda: (id: ReformAgendaId) => void
   resetGame: () => void
@@ -73,6 +75,8 @@ const noopActions: GameActions = {
   proposeAlliance: () => {},
   breakAlliance: () => {},
   sendDiplomaticMessage: () => {},
+  signTradeDeal: () => {},
+  issueSanctions: () => {},
   resolveEventChoice: () => {},
   setReformAgenda: () => {},
   resetGame: () => {},
@@ -98,6 +102,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [game, setGame] = useState<Game | null>(null)
   const [tickStats, setTickStats] = useState<TickStats>(DEFAULT_TICK_STATS)
   const lastSavedDateRef = useRef<number>(0)
+  // Remembers whether the game was running when the tab was hidden so we can
+  // restore that exact state when it becomes visible again. Null means we
+  // haven't suspended for visibility.
+  const visibilityPausedRef = useRef<boolean | null>(null)
 
   function autosave(next: Game) {
     const ts = next.date.getTime()
@@ -265,6 +273,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [persist]
   )
 
+  const signTradeDeal = useCallback(
+    (target: string) => {
+      setGame((current) => {
+        if (!current) return current
+        const next = current.signTradeDeal(target)
+        persist(next)
+        return next
+      })
+    },
+    [persist]
+  )
+
+  const issueSanctions = useCallback(
+    (target: string) => {
+      setGame((current) => {
+        if (!current) return current
+        const next = current.issueSanctions(target)
+        persist(next)
+        return next
+      })
+    },
+    [persist]
+  )
+
   const resolveEventChoice = useCallback(
     (eventId: string, choiceId: string) => {
       setGame((current) => {
@@ -388,6 +420,32 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.speed, game?.paused, game?.gameOver, game?.pendingEventId, game])
 
+  // Auto-pause on tab hidden, restore on visible. Skips the round-trip when
+  // the game is already paused, over, or has a pending event.
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    function onVisibility() {
+      setGame((current) => {
+        if (!current) return current
+        if (current.gameOver || current.pendingEventId) return current
+        if (document.visibilityState === "hidden") {
+          if (current.paused) return current
+          visibilityPausedRef.current = false
+          return current.with({ paused: true })
+        }
+        // visible again
+        if (visibilityPausedRef.current === false && current.paused) {
+          visibilityPausedRef.current = null
+          return current.with({ paused: false })
+        }
+        visibilityPausedRef.current = null
+        return current
+      })
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => document.removeEventListener("visibilitychange", onVisibility)
+  }, [])
+
   const value = useMemo<GameContextValue>(
     () => ({
       game,
@@ -404,6 +462,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         proposeAlliance,
         breakAlliance,
         sendDiplomaticMessage,
+        signTradeDeal,
+        issueSanctions,
         resolveEventChoice,
         setReformAgenda,
         resetGame,
@@ -425,6 +485,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       proposeAlliance,
       breakAlliance,
       sendDiplomaticMessage,
+      signTradeDeal,
+      issueSanctions,
       resolveEventChoice,
       setReformAgenda,
       resetGame,
