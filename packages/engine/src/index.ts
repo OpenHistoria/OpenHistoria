@@ -6,6 +6,15 @@ export {
 } from "./game"
 export { buildRetrospective } from "./retrospective"
 export type { Retrospective } from "./retrospective"
+export {
+  computeLobbyBaselines,
+  defaultLobbies,
+  LOBBIES,
+  LOBBY_IDS,
+  driftLobbies,
+  lobbyApprovalContribution,
+} from "./lobbies"
+export type { LobbyDef, LobbyId } from "./lobbies"
 export type {
   BriefingEntry,
   BriefingKind,

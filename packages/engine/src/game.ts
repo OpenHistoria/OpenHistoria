@@ -30,6 +30,13 @@ import {
   listMinisters,
   type CabinetAppointments,
 } from "./cabinet"
+import {
+  computeLobbyBaselines,
+  defaultLobbies,
+  driftLobbies,
+  lobbyApprovalContribution,
+  type LobbyId,
+} from "./lobbies"
 
 export type NationCode = "FR"
 export type CharacterId = "macron"
@@ -195,6 +202,8 @@ export interface GameSnapshot {
   triggeredWarnings: string[]
   /** Active cabinet appointments: roleId -> candidate id. */
   cabinet?: Record<string, string>
+  /** Interest-group satisfactions in [0,100]; optional so older saves work. */
+  lobbies?: Record<LobbyId, number>
 }
 
 export type BriefingKind =
@@ -236,6 +245,7 @@ interface GameFields {
   impeachmentDays: number
   triggeredWarnings: ReadonlySet<string>
   cabinet: CabinetAppointments
+  lobbies: Record<LobbyId, number>
 }
 
 const countryStatsProvider = new CountryStatsProvider()
@@ -324,6 +334,7 @@ export class Game {
   readonly impeachmentDays: number
   readonly triggeredWarnings: ReadonlySet<string>
   readonly cabinet: CabinetAppointments
+  readonly lobbies: Record<LobbyId, number>
 
   constructor(init: GameFields) {
     this.nation = init.nation
@@ -347,6 +358,7 @@ export class Game {
     this.impeachmentDays = init.impeachmentDays
     this.triggeredWarnings = init.triggeredWarnings
     this.cabinet = init.cabinet
+    this.lobbies = init.lobbies
   }
 
   static createNew(): Game {
@@ -389,6 +401,7 @@ export class Game {
       impeachmentDays: 0,
       triggeredWarnings: new Set<string>(),
       cabinet: {},
+      lobbies: defaultLobbies(),
     })
   }
 
@@ -415,6 +428,7 @@ export class Game {
       impeachmentDays: this.impeachmentDays,
       triggeredWarnings: this.triggeredWarnings,
       cabinet: this.cabinet,
+      lobbies: this.lobbies,
       ...overrides,
     })
   }
@@ -922,6 +936,24 @@ export class Game {
       }
     }
 
+    // Lobby drift toward baselines + their small approval contribution.
+    const lobbyBaselines = computeLobbyBaselines(
+      // We need to evaluate baselines against a "current" snapshot. The
+      // freshly-mutated stats/treasury/projects are what the lobbies will
+      // react to next tick, so we feed a synthetic Game-like object only
+      // through the helper (we type-cast minimally).
+      this.with({
+        treasury,
+        approval,
+        stats,
+        projects,
+      })
+    )
+    const lobbies = driftLobbies(this.lobbies, lobbyBaselines, days)
+    approval = clampApproval(
+      approval + lobbyApprovalContribution(lobbies) * days
+    )
+
     // Bankruptcy / impeachment failure counters.
     let bankruptcyDays = this.bankruptcyDays
     let impeachmentDays = this.impeachmentDays
@@ -1051,6 +1083,7 @@ export class Game {
       impeachmentDays,
       gameOver,
       triggeredWarnings: nextWarnings,
+      lobbies,
     })
   }
 
@@ -1120,6 +1153,7 @@ export class Game {
       impeachmentDays: this.impeachmentDays,
       triggeredWarnings: Array.from(this.triggeredWarnings),
       cabinet: { ...this.cabinet },
+      lobbies: { ...this.lobbies },
     }
   }
 
@@ -1150,6 +1184,7 @@ export class Game {
         impeachmentDays: s.impeachmentDays ?? 0,
         triggeredWarnings: new Set(s.triggeredWarnings ?? []),
         cabinet: s.cabinet ?? {},
+        lobbies: s.lobbies ?? defaultLobbies(),
       })
     }
     return migrateLegacy(snapshot)
@@ -1255,6 +1290,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       impeachmentDays: 0,
       triggeredWarnings: new Set<string>(),
       cabinet: {},
+      lobbies: defaultLobbies(),
     })
   }
   if ((snapshot as LegacyV3Snapshot).version === 3) {
@@ -1282,6 +1318,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       impeachmentDays: 0,
       triggeredWarnings: new Set<string>(),
       cabinet: {},
+      lobbies: defaultLobbies(),
     })
   }
   if ((snapshot as LegacyV2Snapshot).version === 2) {
@@ -1309,6 +1346,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       impeachmentDays: 0,
       triggeredWarnings: new Set<string>(),
       cabinet: {},
+      lobbies: defaultLobbies(),
     })
   }
   const s = snapshot as LegacyV1Snapshot
@@ -1347,6 +1385,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
     impeachmentDays: 0,
     triggeredWarnings: new Set<string>(),
     cabinet: {},
+    lobbies: defaultLobbies(),
   })
 }
 

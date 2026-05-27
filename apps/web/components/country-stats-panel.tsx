@@ -25,6 +25,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 
 import { ApprovalBreakdown } from "@/components/approval-breakdown"
 import { CabinetSheet } from "@/components/cabinet-sheet"
+import { LobbyBar } from "@/components/lobby-bar"
 import { CountryFlag } from "@/components/country-flag"
 import { FloatingPanel } from "@/components/floating-panel"
 import { useGame, useGameActions } from "@/components/game-provider"
@@ -194,6 +195,7 @@ export function CountryStatsPanel() {
         />
       </ul>
       <ReformAgendaStrip />
+      <LobbyBarInline />
       <ApprovalBreakdownInline />
       {nextEvent && (
         <div className="flex items-start gap-2 border-t px-3 py-2 text-xs">
@@ -303,6 +305,14 @@ function ApprovalBreakdownInline() {
   return (
     <div className="border-t bg-muted/30 px-3 py-2">
       <ApprovalBreakdown />
+    </div>
+  )
+}
+
+function LobbyBarInline() {
+  return (
+    <div className="border-t bg-muted/30 px-3 py-2">
+      <LobbyBar />
     </div>
   )
 }
