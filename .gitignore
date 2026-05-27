@@ -34,3 +34,6 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+# Claude Code worktrees
+.claude/worktrees/
