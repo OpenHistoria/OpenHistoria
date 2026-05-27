@@ -1,3 +1,4 @@
+import type { EventCategory, EventEffects } from "./events"
 import type { Game } from "./game"
 import type { ProjectKind } from "./projects"
 
@@ -157,4 +158,73 @@ export function defaultLobbies(): Record<LobbyId, number> {
     military: 50,
     public_sector: 50,
   }
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v))
+}
+
+/**
+ * Immediate satisfaction shift when an event resolves with the given choice
+ * effects. The reaction is shaped by the event's category (social events
+ * dominate unions, scandals erode public-sector confidence, etc.) and by the
+ * signed deltas on the chosen effects so populist vs austerity reads through.
+ */
+export function applyLobbyEventReaction(
+  lobbies: Record<LobbyId, number>,
+  category: EventCategory,
+  effects: EventEffects
+): Record<LobbyId, number> {
+  const out: Record<LobbyId, number> = { ...lobbies }
+  const approvalDelta = effects.approval ?? 0
+  const unemploymentDelta = effects.unemploymentDelta ?? 0
+  const debtDelta = effects.debtDelta ?? 0
+  const gdpDelta = effects.gdpDelta ?? 0
+  const treasuryDelta = effects.treasury ?? 0
+
+  function bump(id: LobbyId, by: number) {
+    out[id] = clamp(out[id] + by, 0, 100)
+  }
+
+  switch (category) {
+    case "social":
+      // Unions read every social decision as either solidarity or betrayal.
+      if (approvalDelta > 0) bump("unions", 6)
+      else if (approvalDelta < 0) bump("unions", -6)
+      if (unemploymentDelta < 0) bump("unions", 4)
+      if (treasuryDelta < -1000) bump("public_sector", -2)
+      break
+    case "economy":
+      if (debtDelta > 0) bump("public_sector", -4)
+      else if (debtDelta < 0) bump("public_sector", 4)
+      if (unemploymentDelta > 0) bump("unions", -5)
+      if (gdpDelta > 0) bump("industry", 3)
+      break
+    case "diplomacy":
+      // Decisive foreign action pleases defence; restraint slightly pleases ecology.
+      if (treasuryDelta < -1000) bump("military", 4)
+      else if (approvalDelta > 0) bump("military", 2)
+      if (gdpDelta > 0) bump("industry", 2)
+      break
+    case "crisis":
+      if (treasuryDelta < 0 && approvalDelta >= 0) {
+        bump("public_sector", 3)
+        bump("military", 2)
+      } else if (approvalDelta < 0) {
+        bump("public_sector", -3)
+      }
+      break
+    case "scandal":
+      bump("public_sector", -5)
+      bump("unions", -1)
+      break
+    case "opportunity":
+      if (gdpDelta > 0) bump("industry", 4)
+      if (approvalDelta > 0) bump("unions", 1)
+      break
+    case "election":
+      // The election itself doesn't shift lobbies — the term is ending.
+      break
+  }
+  return out
 }

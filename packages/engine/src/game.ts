@@ -31,6 +31,7 @@ import {
   type CabinetAppointments,
 } from "./cabinet"
 import {
+  applyLobbyEventReaction,
   computeLobbyBaselines,
   defaultLobbies,
   driftLobbies,
@@ -830,6 +831,9 @@ export class Game {
     let briefing = this.briefing
     let stats: CountryStats = econ.stats
     let triggeredEvents = this.triggeredEvents
+    // Mutable lobby state; both auto-resolved events and the periodic drift
+    // below feed into it.
+    let lobbiesWorking: Record<LobbyId, number> = this.lobbies
 
     const remaining: Project[] = []
     for (const project of projects) {
@@ -907,6 +911,11 @@ export class Game {
               choiceId: choice.id,
             },
           ]
+          lobbiesWorking = applyLobbyEventReaction(
+            lobbiesWorking,
+            candidate.category,
+            choice.effects
+          )
           briefing = pushTo(briefing, makeBriefing(newDate, {
             kind: severity === "low" ? "milestone" : "warning",
             title: candidate.title,
@@ -949,7 +958,7 @@ export class Game {
         projects,
       })
     )
-    const lobbies = driftLobbies(this.lobbies, lobbyBaselines, days)
+    const lobbies = driftLobbies(lobbiesWorking, lobbyBaselines, days)
     approval = clampApproval(
       approval + lobbyApprovalContribution(lobbies) * days
     )
@@ -1111,6 +1120,12 @@ export class Game {
       gameOver = computeOutcome(next, event)
     }
 
+    const lobbies = applyLobbyEventReaction(
+      next.lobbies,
+      event.category,
+      effects
+    )
+
     return next.with({
       triggeredEvents: [...this.triggeredEvents, triggered],
       pendingEvent: null,
@@ -1119,6 +1134,7 @@ export class Game {
       // Resume the clock once the player has decided; the auto-pause from when
       // the event arrived shouldn't persist past the choice.
       paused: gameOver ? this.paused : false,
+      lobbies,
     })
   }
 

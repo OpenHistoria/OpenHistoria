@@ -53,6 +53,15 @@ const FR_CABINET: Minister[] = [
     portfolio: "Younger, telegenic — leans into media wins.",
     bonus: { approvalPerDay: 0.02 },
   },
+  {
+    id: "fr-pm-philippe",
+    roleId: "pm",
+    role: "Prime Minister",
+    name: "Édouard Philippe",
+    party: "Horizons",
+    portfolio: "Centrist statesman; trades activity for steady drift control.",
+    bonus: { approvalDriftPerDay: 0.025 },
+  },
   // Finance candidates
   {
     id: "fr-finance-armand",
@@ -79,6 +88,18 @@ const FR_CABINET: Minister[] = [
       },
     },
   },
+  {
+    id: "fr-finance-pisani",
+    roleId: "finance",
+    role: "Minister of Economy & Finance",
+    name: "Jean Pisani-Ferry",
+    party: "Independent",
+    portfolio: "Technocrat: minimises shocks, neutral on growth.",
+    bonus: {
+      bondDebtMultiplier: 0.8,
+      treasuryPenaltyMultiplier: 0.85,
+    },
+  },
   // Interior candidates
   {
     id: "fr-interior-retailleau",
@@ -101,6 +122,18 @@ const FR_CABINET: Minister[] = [
       diplomacyDriftMultiplier: 0.85,
     },
   },
+  {
+    id: "fr-interior-castaner",
+    roleId: "interior",
+    role: "Minister of the Interior",
+    name: "Christophe Castaner",
+    party: "Renaissance",
+    portfolio: "Moderate operator; aligns interior with EU partners.",
+    bonus: {
+      approvalPerDay: 0.006,
+      diplomacyDriftMultiplier: 1.05,
+    },
+  },
   // Foreign affairs candidates
   {
     id: "fr-foreign-barrot",
@@ -119,6 +152,18 @@ const FR_CABINET: Minister[] = [
     party: "Independent",
     portfolio: "Veteran ambassador; quieter but unmissed in capitals.",
     bonus: { diplomacyDriftMultiplier: 1.2, approvalPerDay: 0.005 },
+  },
+  {
+    id: "fr-foreign-attal-foreign",
+    roleId: "foreign",
+    role: "Minister for Europe & Foreign Affairs",
+    name: "Stéphane Séjourné",
+    party: "Renaissance",
+    portfolio: "Modern operator; favours bilateral trade outcomes.",
+    bonus: {
+      diplomacyDriftMultiplier: 1.15,
+      projectCompletionApprovalBonus: { kinds: ["diplomacy"], delta: 1 },
+    },
   },
   // Defence candidates
   {
@@ -149,6 +194,21 @@ const FR_CABINET: Minister[] = [
       },
     },
   },
+  {
+    id: "fr-defence-le-drian",
+    roleId: "defence",
+    role: "Minister of Armed Forces",
+    name: "Jean-Yves Le Drian",
+    party: "Independent",
+    portfolio: "Diplomatic-defence hand; converts arms deals into goodwill.",
+    bonus: {
+      projectCompletionApprovalBonus: {
+        kinds: ["construction:nuclear"],
+        delta: 1,
+      },
+      diplomacyDriftMultiplier: 1.1,
+    },
+  },
   // Justice candidates
   {
     id: "fr-justice-migaud",
@@ -167,6 +227,15 @@ const FR_CABINET: Minister[] = [
     party: "Renaissance",
     portfolio: "Ex-prosecutor; combative, useful in scandal cycles.",
     bonus: { approvalPerDay: 0.003 },
+  },
+  {
+    id: "fr-justice-belloubet",
+    roleId: "justice",
+    role: "Minister of Justice",
+    name: "Nicole Belloubet",
+    party: "Renaissance",
+    portfolio: "Academic background; small steady approval lift.",
+    bonus: { approvalDriftPerDay: 0.005 },
   },
   // Labour & Health candidates
   {
@@ -191,6 +260,20 @@ const FR_CABINET: Minister[] = [
     party: "Renaissance",
     portfolio: "Pension-reform veteran; lowers deficit-penalty impact.",
     bonus: { treasuryPenaltyMultiplier: 0.85 },
+  },
+  {
+    id: "fr-labour-borne-labour",
+    roleId: "labour",
+    role: "Minister of Labour & Health",
+    name: "Élisabeth Borne",
+    party: "Renaissance",
+    portfolio: "Experienced manager; nudges civilian + infra completion.",
+    bonus: {
+      projectCompletionApprovalBonus: {
+        kinds: ["construction:civilian", "construction:infrastructure"],
+        delta: 1,
+      },
+    },
   },
   // Ecology candidates
   {
@@ -220,6 +303,21 @@ const FR_CABINET: Minister[] = [
         delta: 2,
       },
       bondDebtMultiplier: 1.15,
+    },
+  },
+  {
+    id: "fr-ecology-jadot",
+    roleId: "ecology",
+    role: "Minister of Ecological Transition",
+    name: "Yannick Jadot",
+    party: "EELV",
+    portfolio: "Pragmatic green; balances infra bonus with fiscal moderation.",
+    bonus: {
+      projectCompletionApprovalBonus: {
+        kinds: ["construction:infrastructure"],
+        delta: 2,
+      },
+      treasuryPenaltyMultiplier: 0.95,
     },
   },
 ]

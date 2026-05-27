@@ -1,16 +1,21 @@
 "use client"
 
-import { AI_NATIONS, getBlocsForNation } from "@workspace/engine"
+import {
+  AI_NATIONS,
+  getAiProfile,
+  getBlocsForNation,
+} from "@workspace/engine"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import {
   BanIcon,
+  ChevronRightIcon,
   HandshakeIcon,
   MessageSquareIcon,
   MinusIcon,
   ShoppingCartIcon,
 } from "lucide-react"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 import { CountryFlag } from "@/components/country-flag"
 import { FloatingPanel } from "@/components/floating-panel"
@@ -78,6 +83,8 @@ export function DiplomacyPanel() {
 function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) {
   const { signTradeDeal, issueSanctions } = useGameActions()
   const { setSelected } = useMapSelection()
+  const [expanded, setExpanded] = useState(false)
+  const profile = getAiProfile(row.code)
   const ratio = (row.opinion + 100) / 200 // 0..1
   const color =
     row.opinion >= 30
@@ -101,7 +108,7 @@ function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) 
   const canTrade = row.opinion >= 20 && economicCooldown === 0
   const canSanction = economicCooldown === 0
   return (
-    <li className="grid grid-cols-[auto_1fr] items-center gap-3 px-3 py-2 text-xs">
+    <li className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-2 text-xs">
       <CountryFlag code={row.code} className="h-4 w-auto rounded-[2px] ring-1 ring-black/20" />
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-1.5">
@@ -203,7 +210,70 @@ function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) 
             </span>
           ) : null}
         </div>
+        {expanded && profile ? (
+          <div className="mt-2 grid gap-1 rounded-sm bg-muted/40 px-2 py-1.5 text-[10px] leading-snug">
+            <div className="flex items-baseline justify-between">
+              <span className="text-muted-foreground">Stance</span>
+              <span className="capitalize">{profile.stance}</span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-muted-foreground">Base opinion</span>
+              <span className="tabular-nums">
+                {profile.baseOpinion > 0 ? "+" : ""}
+                {profile.baseOpinion}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-muted-foreground">Activity</span>
+              <span className="tabular-nums">
+                {(profile.activity * 100).toFixed(0)}%
+              </span>
+            </div>
+            {Object.keys(profile.reactsTo).length > 0 ? (
+              <div>
+                <div className="text-muted-foreground">Reacts to</div>
+                <ul className="mt-0.5 grid gap-0.5">
+                  {(
+                    Object.entries(profile.reactsTo) as [
+                      keyof typeof profile.reactsTo,
+                      number,
+                    ][]
+                  ).map(([kind, delta]) => (
+                    <li
+                      key={kind}
+                      className="flex items-baseline justify-between"
+                    >
+                      <span>{kind.replace("construction:", "")}</span>
+                      <span
+                        className={
+                          "tabular-nums " +
+                          (delta > 0 ? "text-emerald-500" : "text-destructive")
+                        }
+                      >
+                        {delta > 0 ? "+" : ""}
+                        {delta}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="self-start rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+        aria-label={expanded ? "Collapse profile" : "Expand profile"}
+        aria-expanded={expanded}
+      >
+        <ChevronRightIcon
+          className={
+            "size-3 transition-transform " + (expanded ? "rotate-90" : "")
+          }
+        />
+      </button>
     </li>
   )
 }

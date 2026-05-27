@@ -7,6 +7,7 @@ export {
 export { buildRetrospective } from "./retrospective"
 export type { Retrospective } from "./retrospective"
 export {
+  applyLobbyEventReaction,
   computeLobbyBaselines,
   defaultLobbies,
   LOBBIES,

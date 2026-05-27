@@ -17,16 +17,11 @@ import {
   DownloadIcon,
   FolderArchiveIcon,
   HistoryIcon,
-  MonitorIcon,
-  MoonIcon,
-  SunIcon,
+  SettingsIcon,
   TrophyIcon,
   UploadIcon,
-  Volume2Icon,
-  VolumeXIcon,
   type LucideIcon,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -35,8 +30,8 @@ import { useHudState } from "@/components/hud-state"
 import { useMapLayers } from "@/components/map-layers-state"
 import { PastMandatesDialog } from "@/components/past-mandates-dialog"
 import { SaveSlotsDialog } from "@/components/save-slots-dialog"
+import { SettingsDialog } from "@/components/settings-dialog"
 import { TrophyRoom } from "@/components/trophy-room"
-import { isMuted, setMuted, sfx } from "@/lib/sfx"
 
 export function PauseMenu() {
   const { pauseMenuOpen, closePauseMenu } = useHudState()
@@ -47,7 +42,7 @@ export function PauseMenu() {
   const [trophyOpen, setTrophyOpen] = useState(false)
   const [slotsOpen, setSlotsOpen] = useState(false)
   const [pastOpen, setPastOpen] = useState(false)
-  const [muted, setMutedState] = useState<boolean>(() => isMuted())
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   function handleOpenChange(open: boolean) {
     if (open) return
@@ -181,18 +176,11 @@ export function PauseMenu() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => {
-                  const next = !muted
-                  setMuted(next)
-                  setMutedState(next)
-                  if (!next) sfx.click()
-                }}
-                aria-pressed={muted}
+                onClick={() => setSettingsOpen(true)}
               >
-                {muted ? <VolumeXIcon /> : <Volume2Icon />}
-                {muted ? "Sound off" : "Sound on"}
+                <SettingsIcon />
+                Settings
               </Button>
-              <ThemePicker />
               <Button
                 variant="ghost"
                 onClick={() => setDebugOpen((v) => !v)}
@@ -212,6 +200,7 @@ export function PauseMenu() {
       <TrophyRoom open={trophyOpen} onOpenChange={setTrophyOpen} />
       <SaveSlotsDialog open={slotsOpen} onOpenChange={setSlotsOpen} />
       <PastMandatesDialog open={pastOpen} onOpenChange={setPastOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Dialog>
   )
 }
@@ -342,37 +331,3 @@ function DebugStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-const THEME_OPTIONS: { key: string; label: string; Icon: LucideIcon }[] = [
-  { key: "light", label: "Light", Icon: SunIcon },
-  { key: "dark", label: "Dark", Icon: MoonIcon },
-  { key: "system", label: "System", Icon: MonitorIcon },
-]
-
-function ThemePicker() {
-  const { theme, setTheme } = useTheme()
-  const current = theme ?? "dark"
-  return (
-    <div className="grid grid-cols-3 gap-1 rounded-md border bg-muted/40 p-1">
-      {THEME_OPTIONS.map(({ key, label, Icon }) => {
-        const active = current === key
-        return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTheme(key)}
-            className={
-              "flex items-center justify-center gap-1.5 rounded-sm px-2 py-1 text-xs transition-colors " +
-              (active
-                ? "bg-background font-medium"
-                : "text-muted-foreground hover:bg-background/60")
-            }
-            aria-pressed={active}
-          >
-            <Icon className="size-3.5" />
-            {label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
