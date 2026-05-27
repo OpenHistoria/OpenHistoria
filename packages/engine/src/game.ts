@@ -35,6 +35,7 @@ import {
   computeLobbyBaselines,
   defaultLobbies,
   driftLobbies,
+  LOBBIES as LOBBY_DEFS,
   lobbyApprovalContribution,
   type LobbyId,
 } from "./lobbies"
@@ -148,6 +149,8 @@ export interface HistorySample {
   approval: number
   gdpUsd: number
   unemploymentPct: number
+  /** Optional lobby snapshot at sample time; absent on pre-round-13 saves. */
+  lobbies?: Record<LobbyId, number>
 }
 
 export type DiplomaticChannel = "sms" | "tweet" | "call" | "letter"
@@ -1005,6 +1008,7 @@ export class Game {
         approval,
         gdpUsd: stats.economy.gdpUsd,
         unemploymentPct: stats.economy.unemploymentPct,
+        lobbies: { ...lobbies },
       }
       history = [...history, sample].slice(-MAX_HISTORY)
     }
@@ -1073,6 +1077,34 @@ export class Game {
                 : `Approval ${approval.toFixed(0)}%, treasury €${Math.round(treasury).toLocaleString()}M.`,
           }))
         }
+      }
+    }
+
+    // Lobby threshold briefings — fire once per direction per group, then
+    // re-arm when satisfaction returns to the neutral 25–75 band.
+    for (const id of Object.keys(lobbies) as LobbyId[]) {
+      const cur = lobbies[id]
+      const upKey = `lobby:${id}:up`
+      const downKey = `lobby:${id}:down`
+      if (cur >= 75 && !nextWarnings.has(upKey)) {
+        nextWarnings.add(upKey)
+        briefing = pushTo(briefing, makeBriefing(newDate, {
+          kind: "milestone",
+          title: `${lobbyLabelFor(id)} squarely behind the government`,
+          detail: `Satisfaction crossed 75 (now ${Math.round(cur)}).`,
+        }))
+      } else if (cur < 60 && nextWarnings.has(upKey)) {
+        nextWarnings.delete(upKey)
+      }
+      if (cur <= 25 && !nextWarnings.has(downKey)) {
+        nextWarnings.add(downKey)
+        briefing = pushTo(briefing, makeBriefing(newDate, {
+          kind: "warning",
+          title: `${lobbyLabelFor(id)} turn against the government`,
+          detail: `Satisfaction dropped to ${Math.round(cur)}.`,
+        }))
+      } else if (cur > 40 && nextWarnings.has(downKey)) {
+        nextWarnings.delete(downKey)
       }
     }
 
@@ -1642,4 +1674,8 @@ function formatEffects(effects: EventEffects): string {
 
 function formatSigned(n: number): string {
   return n > 0 ? `+${n}` : `${n}`
+}
+
+function lobbyLabelFor(id: LobbyId): string {
+  return LOBBY_DEFS.find((l) => l.id === id)?.label ?? id
 }

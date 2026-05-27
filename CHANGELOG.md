@@ -3,6 +3,26 @@
 Notable changes are grouped by round. Each round corresponds to a single
 `feat:` commit on `main`; the list is curated, not exhaustive.
 
+## Round 13
+- **Lobby shift briefings**: when a lobby crosses 75 or 25, a one-shot
+  milestone / warning lands in the briefing. Rearms when satisfaction
+  returns to the neutral band.
+- **Election countdown banner** pinned next to the time controls: live days
+  remaining plus reform-agenda status, with colour escalation at T-30/T-7.
+- Lobby snapshots added to weekly `HistorySample`. Optional field so older
+  saves keep loading.
+
+## Round 12
+- **Lobby reactions to events**: `applyLobbyEventReaction` maps event
+  category + signed choice effects to immediate lobby shifts, wired into
+  both player resolution and the cabinet auto-resolve path.
+- Third candidate per cabinet role (8 new candidates) with distinct bonus
+  shapes.
+- New **Settings dialog** consolidating theme + sound (pause menu loses the
+  inline ThemePicker).
+- Diplomacy panel rows expand to show AI profile (stance, base opinion,
+  activity, project-kind reactions).
+
 ## Round 11
 - **Lobby groups**: five interest groups (unions, industry, ecology, defence,
   public sector) with satisfaction that drifts toward a state-derived
