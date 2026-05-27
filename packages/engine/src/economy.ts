@@ -24,6 +24,8 @@ export interface CashflowSummary {
   annualRevenue: number
   annualExpenses: number
   projectMonthlyCost: number
+  /** Annual debt-service expense in €M (already folded into annualExpenses). */
+  annualInterest: number
   annualBalance: number
   monthlyBalance: number
 }
@@ -35,6 +37,10 @@ const APPROVAL_BASELINE = 35
 const APPROVAL_DRIFT_PER_DAY = 0.08
 const TREASURY_PENALTY_THRESHOLD = -20_000
 const TREASURY_PENALTY_PER_DAY = 0.05
+// Annual interest rate the treasury pays on outstanding debt. Modest because
+// French debt is heavily long-dated; the gameplay point is to make high
+// debt/GDP a real running cost, not a one-tick hit.
+const DEBT_INTEREST_RATE = 0.025
 // Treasury floor at -€2T to keep arithmetic well-defined; below that we just
 // stop accumulating losses (the game-over check in Game will have fired well
 // before this is reached).
@@ -54,12 +60,17 @@ export function getCashflow(
     Math.max(0, stats.economy.unemploymentPct - 5)
   const projectMonthly = projects.reduce((sum, p) => sum + p.monthlyCost, 0)
   const projectAnnual = projectMonthly * 12
-  const annualExpenses = baselineSpending + unemploymentCost + projectAnnual
+  // Debt service: outstanding stock × annual rate. publicDebtPctGdp is in %.
+  const debtStock = gdpMillions * (stats.economy.publicDebtPctGdp / 100)
+  const annualInterest = Math.max(0, debtStock * DEBT_INTEREST_RATE)
+  const annualExpenses =
+    baselineSpending + unemploymentCost + projectAnnual + annualInterest
   const annualBalance = revenue - annualExpenses
   return {
     annualRevenue: revenue,
     annualExpenses,
     projectMonthlyCost: projectMonthly,
+    annualInterest,
     annualBalance,
     monthlyBalance: annualBalance / 12,
   }

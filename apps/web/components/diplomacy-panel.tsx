@@ -22,6 +22,7 @@ import { FloatingPanel } from "@/components/floating-panel"
 import { useGame, useGameActions } from "@/components/game-provider"
 import { useHudState } from "@/components/hud-state"
 import { useMapSelection } from "@/components/map-country-regions"
+import { MiniSparkline } from "@/components/mini-sparkline"
 
 const relDateFmt = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -61,6 +62,14 @@ export function DiplomacyPanel() {
 
   if (!game) return null
   const today = game.date.getTime()
+  // Per-nation opinion trend pulled from the weekly history snapshots.
+  const trends: Record<string, number[]> = {}
+  for (const sample of game.history) {
+    if (!sample.opinions) continue
+    for (const [code, op] of Object.entries(sample.opinions)) {
+      ;(trends[code] ??= []).push(op)
+    }
+  }
   return (
     <FloatingPanel
       open={diplomacyOpen}
@@ -73,14 +82,27 @@ export function DiplomacyPanel() {
     >
       <ul className="divide-y">
         {rows.map((r) => (
-          <DiplomacyRowItem key={r.code} row={r} today={today} />
+          <DiplomacyRowItem
+            key={r.code}
+            row={r}
+            today={today}
+            trend={trends[r.code] ?? []}
+          />
         ))}
       </ul>
     </FloatingPanel>
   )
 }
 
-function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) {
+function DiplomacyRowItem({
+  row,
+  today,
+  trend,
+}: {
+  row: DiplomacyRow
+  today: number
+  trend: number[]
+}) {
   const { signTradeDeal, issueSanctions } = useGameActions()
   const { setSelected } = useMapSelection()
   const [expanded, setExpanded] = useState(false)
@@ -144,11 +166,27 @@ function DiplomacyRowItem({ row, today }: { row: DiplomacyRow; today: number }) 
             }}
           />
         </div>
-        <div className="mt-0.5 flex items-baseline justify-between text-[10px] text-muted-foreground">
+        <div className="mt-0.5 flex items-baseline justify-between gap-2 text-[10px] text-muted-foreground">
           <span className="tabular-nums">
             {row.opinion > 0 ? "+" : ""}
             {row.opinion.toFixed(0)}
           </span>
+          {trend.length >= 2 ? (
+            <MiniSparkline
+              values={trend}
+              min={-100}
+              max={100}
+              width={48}
+              height={12}
+              className={
+                row.opinion >= 30
+                  ? "text-emerald-500"
+                  : row.opinion <= -30
+                    ? "text-destructive"
+                    : "text-amber-500"
+              }
+            />
+          ) : null}
           <span>
             {row.lastInteractionAt ? (
               <>last {relDateFmt.format(new Date(row.lastInteractionAt))}</>

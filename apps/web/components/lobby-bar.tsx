@@ -1,10 +1,11 @@
 "use client"
 
-import { LOBBIES } from "@workspace/engine"
+import { LOBBIES, type LobbyId } from "@workspace/engine"
 import { cn } from "@workspace/ui/lib/utils"
 import { UsersRoundIcon } from "lucide-react"
 
 import { useGame } from "@/components/game-provider"
+import { MiniSparkline } from "@/components/mini-sparkline"
 
 /**
  * Compact widget showing each interest group's satisfaction as a coloured
@@ -13,6 +14,21 @@ import { useGame } from "@/components/game-provider"
 export function LobbyBar() {
   const game = useGame()
   if (!game) return null
+  // Build per-lobby trend series from the weekly history.
+  const trends: Record<LobbyId, number[]> = {
+    unions: [],
+    industry: [],
+    ecology: [],
+    military: [],
+    public_sector: [],
+  }
+  for (const sample of game.history) {
+    if (!sample.lobbies) continue
+    for (const id of Object.keys(trends) as LobbyId[]) {
+      const v = sample.lobbies[id]
+      if (typeof v === "number") trends[id].push(v)
+    }
+  }
   return (
     <div className="text-xs">
       <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -22,10 +38,11 @@ export function LobbyBar() {
       <ul className="grid gap-1">
         {LOBBIES.map((lobby) => {
           const sat = game.lobbies[lobby.id] ?? 50
+          const series = trends[lobby.id]
           return (
             <li
               key={lobby.id}
-              className="grid grid-cols-[1fr_auto] items-baseline gap-2"
+              className="grid grid-cols-[1fr_auto_auto] items-baseline gap-2"
               title={lobby.blurb}
             >
               <div className="min-w-0">
@@ -42,6 +59,14 @@ export function LobbyBar() {
               <span className={"text-[10px] tabular-nums " + textColor(sat)}>
                 {Math.round(sat)}
               </span>
+              <MiniSparkline
+                values={series}
+                min={0}
+                max={100}
+                width={36}
+                height={12}
+                className={"shrink-0 " + textColor(sat)}
+              />
             </li>
           )
         })}

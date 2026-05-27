@@ -3,6 +3,16 @@
 Notable changes are grouped by round. Each round corresponds to a single
 `feat:` commit on `main`; the list is curated, not exhaustive.
 
+## Round 14
+- **Debt interest** is now a real ongoing cost: 2.5%/yr on the outstanding
+  debt stock, folded into `getCashflow.annualInterest` and the daily
+  treasury balance.
+- **Per-AI opinion history** snapshotted weekly; surfaced as a tiny inline
+  sparkline next to each diplomacy panel row.
+- **Lobby sparklines** in the country-stats panel using the round-13
+  per-group history.
+- Generic `MiniSparkline` component for reuse anywhere a 48×12 trend reads.
+
 ## Round 13
 - **Lobby shift briefings**: when a lobby crosses 75 or 25, a one-shot
   milestone / warning lands in the briefing. Rearms when satisfaction

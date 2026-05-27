@@ -151,6 +151,11 @@ export interface HistorySample {
   unemploymentPct: number
   /** Optional lobby snapshot at sample time; absent on pre-round-13 saves. */
   lobbies?: Record<LobbyId, number>
+  /**
+   * Optional per-AI-nation opinion at sample time; absent on pre-round-14
+   * saves. Sparse — only nations that have a non-default relation appear.
+   */
+  opinions?: Record<string, number>
 }
 
 export type DiplomaticChannel = "sms" | "tweet" | "call" | "letter"
@@ -1002,6 +1007,10 @@ export class Game {
     const lastSample = history[history.length - 1]
     const lastTs = lastSample ? Date.parse(lastSample.date) : -Infinity
     if (newDate.getTime() - lastTs >= 7 * 86_400_000) {
+      const opinions: Record<string, number> = {}
+      for (const [code, rel] of Object.entries(ai.relations)) {
+        opinions[code] = rel.opinion
+      }
       const sample: HistorySample = {
         date: newDate.toISOString(),
         treasury,
@@ -1009,6 +1018,7 @@ export class Game {
         gdpUsd: stats.economy.gdpUsd,
         unemploymentPct: stats.economy.unemploymentPct,
         lobbies: { ...lobbies },
+        opinions,
       }
       history = [...history, sample].slice(-MAX_HISTORY)
     }

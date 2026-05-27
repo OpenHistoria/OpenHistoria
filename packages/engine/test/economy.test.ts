@@ -30,6 +30,25 @@ describe("getCashflow", () => {
     expect(cashflow.annualRevenue).toBeGreaterThan(0)
     expect(cashflow.annualExpenses).toBeGreaterThan(0)
     expect(cashflow.projectMonthlyCost).toBe(0)
+    expect(cashflow.annualInterest).toBeGreaterThan(0)
+  })
+
+  it("includes debt interest in annualExpenses", () => {
+    const stats = provider.fetchSync("FR")
+    const a = getCashflow(stats, [])
+    const stressed = {
+      ...stats,
+      economy: {
+        ...stats.economy,
+        publicDebtPctGdp: stats.economy.publicDebtPctGdp + 50,
+      },
+    }
+    const b = getCashflow(stressed, [])
+    expect(b.annualInterest).toBeGreaterThan(a.annualInterest)
+    expect(b.annualExpenses - a.annualExpenses).toBeCloseTo(
+      b.annualInterest - a.annualInterest,
+      5
+    )
   })
 
   it("adds monthly project cost to expenses", () => {
