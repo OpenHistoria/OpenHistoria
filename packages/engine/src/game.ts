@@ -5,6 +5,7 @@ import {
 } from "./country-stats"
 import { applyEconomyTick, sanitizeStats } from "./economy"
 import {
+  EVENT_LIBRARY,
   getDueEvent,
   getEventSeverity,
   type EventDefinition,
@@ -161,6 +162,12 @@ export interface GameSnapshot {
   bankruptcyDays: number
   /** Day-counter for the "approval critically low" impeachment trip. */
   impeachmentDays: number
+  /**
+   * One-shot warning IDs the engine has already fired in this run. Lets the
+   * tick emit a single "approaching bankruptcy"/"election in 30d" briefing
+   * line instead of one every tick.
+   */
+  triggeredWarnings: string[]
 }
 
 export type BriefingKind =
@@ -200,6 +207,7 @@ interface GameFields {
   history: readonly HistorySample[]
   bankruptcyDays: number
   impeachmentDays: number
+  triggeredWarnings: ReadonlySet<string>
 }
 
 const countryStatsProvider = new CountryStatsProvider()
@@ -209,6 +217,22 @@ const INITIAL_APPROVAL = 38
 const INITIAL_TREASURY_MILLIONS = -2_000
 const BOND_APPROVAL_COST_PER_BILLION = 0.4
 const BOND_DEBT_DELTA_PER_BILLION = 0.03
+// Debt-to-GDP at which the bond market starts charging real political costs:
+// approval and debt-pp impact scale up linearly from here, capped at 3x.
+const BOND_STRESS_DEBT_PCT = 130
+// Hard cap on debt/GDP. Past this, the engine refuses new bonds outright.
+const BOND_HARD_DEBT_CAP_PCT = 160
+const ADDPROJECT_TREASURY_BUFFER = 50_000
+
+// Player-warning thresholds. Fired at most once each via the
+// `triggeredWarnings` set so we don't spam the briefing.
+const WARN_BANKRUPTCY_TREASURY = -300_000
+const WARN_IMPEACHMENT_APPROVAL = 22
+const ELECTION_COUNTDOWN_DAYS = [90, 30, 7] as const
+
+// Anchor for election-countdown reminders. Picked up by ID from EVENT_LIBRARY
+// so changing the date in events.ts stays load-bearing.
+const ELECTION_EVENT_ID = "fr-2027-presidential-election"
 
 // Failure thresholds. Tuned so a player has weeks of warning before the run
 // ends, not minutes — but they're real teeth.
@@ -249,6 +273,7 @@ export class Game {
   readonly history: readonly HistorySample[]
   readonly bankruptcyDays: number
   readonly impeachmentDays: number
+  readonly triggeredWarnings: ReadonlySet<string>
 
   constructor(init: GameFields) {
     this.nation = init.nation
@@ -270,6 +295,7 @@ export class Game {
     this.history = init.history
     this.bankruptcyDays = init.bankruptcyDays
     this.impeachmentDays = init.impeachmentDays
+    this.triggeredWarnings = init.triggeredWarnings
   }
 
   static createNew(): Game {
@@ -310,6 +336,7 @@ export class Game {
       ],
       bankruptcyDays: 0,
       impeachmentDays: 0,
+      triggeredWarnings: new Set<string>(),
     })
   }
 
@@ -334,6 +361,7 @@ export class Game {
       history: this.history,
       bankruptcyDays: this.bankruptcyDays,
       impeachmentDays: this.impeachmentDays,
+      triggeredWarnings: this.triggeredWarnings,
       ...overrides,
     })
   }
@@ -366,7 +394,9 @@ export class Game {
 
   addProject(project: Project): Game {
     if (this.gameOver) return this
-    if (project.upfrontCost > this.treasury + 50_000) {
+    // Refuse if scheduling this project would push the treasury past the
+    // discretionary borrowing buffer — the player needs to issue a bond first.
+    if (this.treasury - project.upfrontCost < -ADDPROJECT_TREASURY_BUFFER) {
       return this
     }
     const treasury = this.treasury - project.upfrontCost
@@ -433,16 +463,38 @@ export class Game {
   issueBond(amountMillions: number): Game {
     if (this.gameOver) return this
     if (amountMillions <= 0) return this
+    if (this.stats.economy.publicDebtPctGdp >= BOND_HARD_DEBT_CAP_PCT) {
+      const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+        kind: "warning",
+        title: "Bond auction failed",
+        detail: `Debt/GDP at ${this.stats.economy.publicDebtPctGdp.toFixed(0)}% — markets refuse new issuance.`,
+      }))
+      return this.with({ briefing })
+    }
     const billions = amountMillions / 1000
-    const stats = structuredClone(this.stats)
-    stats.economy.publicDebtPctGdp += BOND_DEBT_DELTA_PER_BILLION * billions
-    const approval = clampApproval(
-      this.approval - BOND_APPROVAL_COST_PER_BILLION * billions
+    // Stress multiplier rises from 1× at BOND_STRESS_DEBT_PCT to 3× at the
+    // hard cap. Above-baseline debt makes each new tranche more politically
+    // and fiscally expensive.
+    const overshoot = Math.max(
+      0,
+      this.stats.economy.publicDebtPctGdp - BOND_STRESS_DEBT_PCT
     )
+    const stressSpan = Math.max(
+      1,
+      BOND_HARD_DEBT_CAP_PCT - BOND_STRESS_DEBT_PCT
+    )
+    const stress = 1 + Math.min(2, (overshoot / stressSpan) * 2)
+    const debtDelta = BOND_DEBT_DELTA_PER_BILLION * billions * stress
+    const approvalCost = BOND_APPROVAL_COST_PER_BILLION * billions * stress
+    const stats = structuredClone(this.stats)
+    stats.economy.publicDebtPctGdp += debtDelta
+    const approval = clampApproval(this.approval - approvalCost)
     const briefing = pushTo(this.briefing, makeBriefing(this.date, {
       kind: "treasury",
       title: `Bond issued: €${amountMillions.toLocaleString()}M`,
-      detail: `Debt +${(BOND_DEBT_DELTA_PER_BILLION * billions).toFixed(2)}pp · Approval ${-BOND_APPROVAL_COST_PER_BILLION * billions}`,
+      detail:
+        `Debt +${debtDelta.toFixed(2)}pp · Approval ${formatSigned(-Number(approvalCost.toFixed(2)))}` +
+        (stress > 1.01 ? ` · stress ×${stress.toFixed(2)}` : ""),
     }))
     return this.with({
       treasury: this.treasury + amountMillions,
@@ -702,6 +754,73 @@ export class Game {
       history = [...history, sample].slice(-MAX_HISTORY)
     }
 
+    // Proactive warnings + election countdown. Each warning fires once via
+    // the triggeredWarnings set so we don't spam the briefing log.
+    const nextWarnings = new Set(this.triggeredWarnings)
+    if (
+      treasury < WARN_BANKRUPTCY_TREASURY &&
+      treasury >= BANKRUPTCY_TREASURY_FLOOR &&
+      !nextWarnings.has("warn:bankruptcy_approach")
+    ) {
+      nextWarnings.add("warn:bankruptcy_approach")
+      briefing = pushTo(briefing, makeBriefing(newDate, {
+        kind: "warning",
+        title: "Bercy warns: bond markets are nervous",
+        detail: `Treasury at €${Math.round(treasury).toLocaleString()}M. Past €${BANKRUPTCY_TREASURY_FLOOR.toLocaleString()}M the IMF intervenes.`,
+      }))
+    }
+    if (
+      treasury >= 0 &&
+      nextWarnings.has("warn:bankruptcy_approach")
+    ) {
+      nextWarnings.delete("warn:bankruptcy_approach")
+    }
+    if (
+      approval < WARN_IMPEACHMENT_APPROVAL &&
+      approval >= IMPEACHMENT_APPROVAL_FLOOR &&
+      !nextWarnings.has("warn:impeachment_approach")
+    ) {
+      nextWarnings.add("warn:impeachment_approach")
+      briefing = pushTo(briefing, makeBriefing(newDate, {
+        kind: "warning",
+        title: "Opposition prepares a motion of censure",
+        detail: `Approval at ${approval.toFixed(0)}%. Below ${IMPEACHMENT_APPROVAL_FLOOR}% for ${IMPEACHMENT_DAYS_TO_LOSE} days = the Assembly removes you.`,
+      }))
+    }
+    if (
+      approval >= 30 &&
+      nextWarnings.has("warn:impeachment_approach")
+    ) {
+      nextWarnings.delete("warn:impeachment_approach")
+    }
+
+    // Election countdown.
+    const election = EVENT_LIBRARY.find((e) => e.id === ELECTION_EVENT_ID)
+    if (election) {
+      const electionMs = Date.parse(election.date + "T00:00:00.000Z")
+      const daysLeft = Math.round(
+        (electionMs - newDate.getTime()) / 86_400_000
+      )
+      for (const milestone of ELECTION_COUNTDOWN_DAYS) {
+        const warnId = `warn:election_t-${milestone}`
+        if (
+          daysLeft <= milestone &&
+          daysLeft > 0 &&
+          !nextWarnings.has(warnId)
+        ) {
+          nextWarnings.add(warnId)
+          briefing = pushTo(briefing, makeBriefing(newDate, {
+            kind: "milestone",
+            title: `Election in ${milestone === 7 ? "a week" : `${milestone} days`}`,
+            detail:
+              milestone === 7
+                ? "Final stretch. Every approval point matters now."
+                : `Approval ${approval.toFixed(0)}%, treasury €${Math.round(treasury).toLocaleString()}M.`,
+          }))
+        }
+      }
+    }
+
     return this.with({
       date: newDate,
       treasury,
@@ -717,6 +836,7 @@ export class Game {
       bankruptcyDays,
       impeachmentDays,
       gameOver,
+      triggeredWarnings: nextWarnings,
     })
   }
 
@@ -784,6 +904,7 @@ export class Game {
       history: [...this.history],
       bankruptcyDays: this.bankruptcyDays,
       impeachmentDays: this.impeachmentDays,
+      triggeredWarnings: Array.from(this.triggeredWarnings),
     }
   }
 
@@ -812,6 +933,7 @@ export class Game {
         history: s.history ?? [],
         bankruptcyDays: s.bankruptcyDays ?? 0,
         impeachmentDays: s.impeachmentDays ?? 0,
+        triggeredWarnings: new Set(s.triggeredWarnings ?? []),
       })
     }
     return migrateLegacy(snapshot)
@@ -915,6 +1037,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       history: [],
       bankruptcyDays: 0,
       impeachmentDays: 0,
+      triggeredWarnings: new Set<string>(),
     })
   }
   if ((snapshot as LegacyV3Snapshot).version === 3) {
@@ -940,6 +1063,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       history: [],
       bankruptcyDays: 0,
       impeachmentDays: 0,
+      triggeredWarnings: new Set<string>(),
     })
   }
   if ((snapshot as LegacyV2Snapshot).version === 2) {
@@ -965,6 +1089,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       history: [],
       bankruptcyDays: 0,
       impeachmentDays: 0,
+      triggeredWarnings: new Set<string>(),
     })
   }
   const s = snapshot as LegacyV1Snapshot
@@ -1001,6 +1126,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
     history: [],
     bankruptcyDays: 0,
     impeachmentDays: 0,
+    triggeredWarnings: new Set<string>(),
   })
 }
 

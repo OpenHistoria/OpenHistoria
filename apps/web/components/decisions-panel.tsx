@@ -121,6 +121,7 @@ export function DecisionsPanel() {
           date: game.date.toISOString(),
           treasury: game.treasury,
           approval: game.approval,
+          reformAgenda: game.reformAgenda?.id ?? null,
           recentBriefings: game.briefing.slice(0, 5).map((b) => b.title),
         }),
       })

@@ -85,6 +85,33 @@ export const EVENT_LIBRARY: readonly EventDefinition[] = [
     ],
   },
   {
+    id: "fr-2026-nato-pressure",
+    nation: "FR",
+    category: "diplomacy",
+    severity: "high",
+    date: "2026-08-12",
+    title: "NATO presses for 3% GDP defence spending",
+    description:
+      "Washington circulates a draft communiqué pushing every European member to 3% of GDP on defence by 2030. Berlin is wavering; the Élysée's position will set the tone.",
+    choices: [
+      {
+        id: "endorse",
+        label: "Endorse the 3% target publicly",
+        effects: { treasury: -3000, approval: -2, debtDelta: 0.2 },
+      },
+      {
+        id: "counterpropose",
+        label: "Counter with a phased EU-led plan",
+        effects: { approval: 2, gdpDelta: 600 },
+      },
+      {
+        id: "reject",
+        label: "Reject the target, defend strategic autonomy",
+        effects: { approval: 3 },
+      },
+    ],
+  },
+  {
     id: "fr-2026-rail-strike",
     nation: "FR",
     category: "social",
@@ -139,6 +166,33 @@ export const EVENT_LIBRARY: readonly EventDefinition[] = [
     ],
   },
   {
+    id: "fr-2026-iran-crisis",
+    nation: "FR",
+    category: "diplomacy",
+    severity: "high",
+    date: "2026-11-04",
+    title: "Tankers struck in the Strait of Hormuz",
+    description:
+      "Two oil tankers — one chartered by TotalEnergies — are hit in the Strait of Hormuz. Iran denies involvement. Energy prices spike across Europe.",
+    choices: [
+      {
+        id: "joint-naval",
+        label: "Deploy the Charles de Gaulle group with EU partners",
+        effects: { treasury: -1800, approval: 2 },
+      },
+      {
+        id: "diplomatic",
+        label: "Lead a backchannel mediation with Tehran",
+        effects: { approval: 1, gdpDelta: -300 },
+      },
+      {
+        id: "energy-package",
+        label: "Cap fuel prices via emergency subsidy",
+        effects: { treasury: -2500, approval: 4, inflationDelta: -0.3 },
+      },
+    ],
+  },
+  {
     id: "fr-2026-tech-scandal",
     nation: "FR",
     category: "scandal",
@@ -166,6 +220,60 @@ export const EVENT_LIBRARY: readonly EventDefinition[] = [
     ],
   },
   {
+    id: "fr-2026-decembre-yellow-vests",
+    nation: "FR",
+    category: "social",
+    severity: "high",
+    date: "2026-12-15",
+    title: "A new yellow-vests movement spreads",
+    description:
+      "Fuel costs and the carbon tax detonate. Roundabout occupations spread from Brittany to the Rhône valley. Saturday protests reach 200,000.",
+    choices: [
+      {
+        id: "freeze-carbon-tax",
+        label: "Freeze the carbon tax escalator for 2027",
+        effects: { treasury: -1800, approval: 5, gdpDelta: -400 },
+      },
+      {
+        id: "minimum-wage",
+        label: "Announce a €100/month working-class top-up",
+        effects: { treasury: -4500, approval: 6, debtDelta: 0.15 },
+      },
+      {
+        id: "hold-line",
+        label: "Hold the line, dispatch the Interior Minister",
+        effects: { approval: -6 },
+      },
+    ],
+  },
+  {
+    id: "fr-2027-eu-presidency",
+    nation: "FR",
+    category: "diplomacy",
+    severity: "high",
+    date: "2027-02-18",
+    title: "Italy proposes a Mediterranean migration pact",
+    description:
+      "Rome wants France to co-sign a hard returns framework. Civil-society pressure inside Renaissance is intense.",
+    choices: [
+      {
+        id: "cosign",
+        label: "Co-sign and gain Italian goodwill",
+        effects: { approval: -2 },
+      },
+      {
+        id: "amend",
+        label: "Amend with humanitarian carve-outs",
+        effects: { approval: 1, treasury: -400 },
+      },
+      {
+        id: "refuse",
+        label: "Refuse; defend asylum rights publicly",
+        effects: { approval: 2, gdpDelta: -200 },
+      },
+    ],
+  },
+  {
     id: "fr-2027-budget-vote",
     nation: "FR",
     category: "economy",
@@ -189,6 +297,33 @@ export const EVENT_LIBRARY: readonly EventDefinition[] = [
         id: "49-3",
         label: "Force adoption via article 49.3",
         effects: { approval: -6 },
+      },
+    ],
+  },
+  {
+    id: "fr-2027-final-debate",
+    nation: "FR",
+    category: "social",
+    severity: "high",
+    date: "2027-04-08",
+    title: "Final televised debate of the campaign",
+    description:
+      "Your endorsed candidate must hold the line on TF1 with 18 million viewers. Choose the messaging strategy.",
+    choices: [
+      {
+        id: "record",
+        label: "Defend the record — “we delivered”",
+        effects: { approval: 3 },
+      },
+      {
+        id: "fear",
+        label: "Warn against the opposition's risks",
+        effects: { approval: -1 },
+      },
+      {
+        id: "vision",
+        label: "Pivot to a vision for the next decade",
+        effects: { approval: 2, gdpDelta: 200 },
       },
     ],
   },
@@ -227,16 +362,42 @@ export function getEventSeverity(event: EventDefinition): EventSeverity {
   return event.severity ?? "medium"
 }
 
+/**
+ * Convert "YYYY-MM-DD" to the UTC-midnight timestamp of that day. We compare
+ * in numeric UTC space so an in-game `Date` that lands on, say, 04:00 UTC
+ * still counts as "the same day" as an event scheduled for that calendar
+ * date, regardless of the host's local timezone.
+ */
+function eventDateToUtcMs(iso: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!m) return Number.NaN
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
+function utcDayStart(date: Date): number {
+  return Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  )
+}
+
 export function getNextEvent(
   fromDate: Date,
   nation: NationCode,
   triggeredIds: ReadonlySet<string>
 ): EventDefinition | null {
-  const fromIso = fromDate.toISOString().slice(0, 10)
+  const fromMs = utcDayStart(fromDate)
   return (
     getEventsForNation(nation)
-      .filter((e) => !triggeredIds.has(e.id) && e.date >= fromIso)
-      .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+      .filter((e) => {
+        if (triggeredIds.has(e.id)) return false
+        const ts = eventDateToUtcMs(e.date)
+        return Number.isFinite(ts) && ts >= fromMs
+      })
+      .sort(
+        (a, b) => eventDateToUtcMs(a.date) - eventDateToUtcMs(b.date)
+      )[0] ?? null
   )
 }
 
@@ -245,10 +406,16 @@ export function getDueEvent(
   nation: NationCode,
   triggeredIds: ReadonlySet<string>
 ): EventDefinition | null {
-  const iso = date.toISOString().slice(0, 10)
+  const ms = utcDayStart(date)
   return (
     getEventsForNation(nation)
-      .filter((e) => !triggeredIds.has(e.id) && e.date <= iso)
-      .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null
+      .filter((e) => {
+        if (triggeredIds.has(e.id)) return false
+        const ts = eventDateToUtcMs(e.date)
+        return Number.isFinite(ts) && ts <= ms
+      })
+      .sort(
+        (a, b) => eventDateToUtcMs(a.date) - eventDateToUtcMs(b.date)
+      )[0] ?? null
   )
 }
