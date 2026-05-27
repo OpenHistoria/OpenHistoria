@@ -16,6 +16,7 @@ import {
   CopyIcon,
   DownloadIcon,
   FolderArchiveIcon,
+  HistoryIcon,
   MonitorIcon,
   MoonIcon,
   SunIcon,
@@ -32,6 +33,7 @@ import { toast } from "sonner"
 import { useGame, useGameActions } from "@/components/game-provider"
 import { useHudState } from "@/components/hud-state"
 import { useMapLayers } from "@/components/map-layers-state"
+import { PastMandatesDialog } from "@/components/past-mandates-dialog"
 import { SaveSlotsDialog } from "@/components/save-slots-dialog"
 import { TrophyRoom } from "@/components/trophy-room"
 import { isMuted, setMuted, sfx } from "@/lib/sfx"
@@ -44,6 +46,7 @@ export function PauseMenu() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [trophyOpen, setTrophyOpen] = useState(false)
   const [slotsOpen, setSlotsOpen] = useState(false)
+  const [pastOpen, setPastOpen] = useState(false)
   const [muted, setMutedState] = useState<boolean>(() => isMuted())
 
   function handleOpenChange(open: boolean) {
@@ -160,13 +163,22 @@ export function PauseMenu() {
               >
                 Reset game
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => setTrophyOpen(true)}
-              >
-                <TrophyIcon />
-                Achievements
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setTrophyOpen(true)}
+                >
+                  <TrophyIcon />
+                  Achievements
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPastOpen(true)}
+                >
+                  <HistoryIcon />
+                  Past mandates
+                </Button>
+              </div>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -199,6 +211,7 @@ export function PauseMenu() {
       </DialogContent>
       <TrophyRoom open={trophyOpen} onOpenChange={setTrophyOpen} />
       <SaveSlotsDialog open={slotsOpen} onOpenChange={setSlotsOpen} />
+      <PastMandatesDialog open={pastOpen} onOpenChange={setPastOpen} />
     </Dialog>
   )
 }

@@ -375,6 +375,83 @@ export const EVENT_LIBRARY: readonly EventDefinition[] = [
     ],
   },
   {
+    id: "fr-2027-ukraine-aid",
+    nation: "FR",
+    category: "diplomacy",
+    severity: "high",
+    date: "2027-02-28",
+    title: "Kyiv requests another €5B military aid package",
+    description:
+      "President Zelensky's office circulates a renewed appeal. The French opposition is split; Berlin is watching.",
+    choices: [
+      {
+        id: "approve",
+        label: "Approve €5B in arms and logistics",
+        effects: { treasury: -5000, approval: 1, debtDelta: 0.15 },
+      },
+      {
+        id: "partial",
+        label: "Approve a smaller €1.5B humanitarian-only package",
+        effects: { treasury: -1500, approval: 1 },
+      },
+      {
+        id: "refuse",
+        label: "Pass; argue France has done its share",
+        effects: { approval: -3 },
+      },
+    ],
+  },
+  {
+    id: "fr-2027-pension-court",
+    nation: "FR",
+    category: "social",
+    severity: "high",
+    date: "2027-03-12",
+    title: "Constitutional Council rules on pension reform",
+    description:
+      "The Conseil constitutionnel hands down its verdict on the 2023 reform's residual provisions. Whichever way it goes, the streets will respond.",
+    choices: [
+      {
+        id: "accept",
+        label: "Accept the ruling as final",
+        effects: { approval: -1, gdpDelta: 200 },
+      },
+      {
+        id: "amend",
+        label: "Announce a corrective amendment in parliament",
+        effects: { approval: 2, treasury: -800, unemploymentDelta: -0.05 },
+      },
+      {
+        id: "defy",
+        label: "Publicly criticise the Council",
+        effects: { approval: -4 },
+      },
+    ],
+  },
+  {
+    id: "fr-2027-airbus-deal",
+    nation: "FR",
+    category: "opportunity",
+    severity: "high",
+    date: "2027-03-25",
+    title: "Airbus secures a 120-aircraft order from India",
+    description:
+      "Toulouse-built A350s and A321XLRs sweep the IndiGo tender. The win is yours to celebrate or quietly bank.",
+    choices: [
+      {
+        id: "rally",
+        label: "Stage a Toulouse press event",
+        effects: { approval: 3, gdpDelta: 1500 },
+      },
+      {
+        id: "quiet",
+        label: "Issue a written statement only",
+        effects: { gdpDelta: 1500 },
+      },
+    ],
+    defaultChoiceIndex: 0,
+  },
+  {
     id: "fr-2027-final-debate",
     nation: "FR",
     category: "social",

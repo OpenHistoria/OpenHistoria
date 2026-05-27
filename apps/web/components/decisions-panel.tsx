@@ -10,6 +10,20 @@ import {
   type ProjectKind,
   type ProjectLocation,
 } from "@workspace/engine"
+
+// Per-kind representative durations used to preview a suggestion's economics
+// before the LLM picks a real duration. Values mirror the descriptive ranges
+// in /api/decide so the hint roughly matches what the engine ends up with.
+const TYPICAL_DURATION_DAYS: Record<ProjectKind, number> = {
+  "construction:nuclear": 3650,
+  "construction:industrial": 730,
+  "construction:infrastructure": 1825,
+  "construction:military": 730,
+  "construction:civilian": 365,
+  diplomacy: 90,
+  economic: 180,
+  other: 365,
+}
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
@@ -353,6 +367,28 @@ export function DecisionsPanel() {
   )
 }
 
+function SuggestionROIHint({ kind }: { kind: ProjectKind }) {
+  const days = TYPICAL_DURATION_DAYS[kind] ?? 365
+  const e = defaultProjectEconomics(kind, days)
+  return (
+    <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[9px] tabular-nums text-muted-foreground">
+      <span>≈ €{e.upfrontCost}M upfront</span>
+      <span>·</span>
+      <span>+{e.completionApproval} appr</span>
+      <span>·</span>
+      <span>+€{e.completionGdp}M GDP</span>
+      <span>·</span>
+      <span>{prettyDuration(days)}</span>
+    </div>
+  )
+}
+
+function prettyDuration(days: number): string {
+  if (days < 60) return `${days}d`
+  if (days < 730) return `${(days / 30).toFixed(0)}mo`
+  return `${(days / 365).toFixed(0)}y`
+}
+
 function groupByKind(
   suggestions: DecisionSuggestion[]
 ): Array<[ProjectKind, DecisionSuggestion[]]> {
@@ -425,6 +461,7 @@ function SuggestionGroup({
                       {s.hint}
                     </div>
                   )}
+                  <SuggestionROIHint kind={s.kind} />
                 </div>
               </button>
             </li>

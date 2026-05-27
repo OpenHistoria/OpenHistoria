@@ -5,6 +5,9 @@ import {
   type GameOverCause,
   type HistorySample,
 } from "@workspace/engine"
+import { useEffect } from "react"
+
+import { recordRun, summariseRun } from "@/lib/run-history"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -67,6 +70,16 @@ const CAUSE_THEMES: Record<Exclude<GameOverCause, undefined>, CauseTheme> = {
 export function GameOverDialog() {
   const game = useGame()
   const { resetGame } = useGameActions()
+
+  // Record the run in localStorage the first time we observe this game-over.
+  // Using the game-over ISO date as the dedup key is fine because resetGame
+  // returns to a fresh state with gameOver=null before any replay can start.
+  const gameOverDate = game?.gameOver?.date ?? null
+  useEffect(() => {
+    if (!game || !game.gameOver) return
+    recordRun(summariseRun(game))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameOverDate])
 
   if (!game?.gameOver) {
     return (
