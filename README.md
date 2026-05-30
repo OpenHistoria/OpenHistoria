@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/alexisbchz/openhistoria/actions/workflows/ci.yml/badge.svg)](https://github.com/alexisbchz/openhistoria/actions/workflows/ci.yml)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 
 A grand strategy sandbox game built on a tickable, deterministic engine. Open
 source alternative to Pax Historia.
@@ -122,4 +122,7 @@ because every external boundary returns a Result.
 
 ## License
 
-MIT. See `LICENSE`.
+GNU Affero General Public License v3.0. See `LICENSE`.
+
+If you run a modified version of this software on a network server, the AGPL
+requires you to make the corresponding source available to its users.
