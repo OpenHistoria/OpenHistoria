@@ -7,6 +7,17 @@ import {
 
 const NETWORK_TIMEOUT_MS = 30_000
 
+// These integration tests hit live external APIs (World Bank + REST
+// Countries). CI runners frequently can't reach them (or are throttled),
+// which makes the suite flaky. Skip them in CI by default; run them locally,
+// or force them anywhere with RUN_NETWORK_TESTS=1. The offline tests below
+// (malformed-code validation + the injected-fetch parser test) always run and
+// cover the fetcher's own logic.
+const RUN_NETWORK_TESTS =
+  process.env.RUN_NETWORK_TESTS === "1" || !process.env.CI
+const netEach = RUN_NETWORK_TESTS ? it.concurrent : it.skip
+const netIt = RUN_NETWORK_TESTS ? it : it.skip
+
 const CASES: Array<{
   code: string
   alpha3: string
@@ -89,7 +100,7 @@ function assertReasonableValue(
 }
 
 describe("fetchCountryData (integration)", () => {
-  it.concurrent.each(CASES)(
+  netEach.each(CASES)(
     "returns reasonable data for $code ($nameIncludes)",
     async (testCase) => {
       const data = await fetchCountryData(testCase.code)
@@ -155,7 +166,7 @@ describe("fetchCountryData (integration)", () => {
     NETWORK_TIMEOUT_MS
   )
 
-  it(
+  netIt(
     "accepts alpha-3 codes",
     async () => {
       const data = await fetchCountryData("FRA")
@@ -166,7 +177,7 @@ describe("fetchCountryData (integration)", () => {
     NETWORK_TIMEOUT_MS
   )
 
-  it(
+  netIt(
     "normalizes lowercase input",
     async () => {
       const data = await fetchCountryData("de")
@@ -182,7 +193,7 @@ describe("fetchCountryData (integration)", () => {
     await expect(fetchCountryData("")).rejects.toThrow(/Invalid country code/)
   })
 
-  it(
+  netIt(
     "throws for unknown but well-formed codes",
     async () => {
       await expect(fetchCountryData("ZZ")).rejects.toThrow(/not found/i)
