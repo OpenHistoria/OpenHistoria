@@ -13,6 +13,7 @@ import {
   saveToSlot,
   type DiplomaticMessageArgs,
   type GameSpeed,
+  type NewGameOptions,
   type Project,
   type ReformAgendaId,
   type SaveSlotEntry,
@@ -52,6 +53,7 @@ interface GameActions {
   setReformAgenda: (id: ReformAgendaId) => void
   appointMinister: (roleId: string, candidateId: string) => void
   resetGame: () => void
+  newGame: (opts: NewGameOptions) => void
   importGame: (raw: string) => { ok: true } | { ok: false; error: string }
   exportSnapshotJson: () => string | null
   saveToSlot: (id: SaveSlotId, label: string) => { ok: true } | { ok: false; error: string }
@@ -92,6 +94,7 @@ const noopActions: GameActions = {
   setReformAgenda: () => {},
   appointMinister: () => {},
   resetGame: () => {},
+  newGame: () => {},
   importGame: () => ({ ok: false, error: "Game provider not ready" }),
   exportSnapshotJson: () => null,
   saveToSlot: () => ({ ok: false, error: "Game provider not ready" }),
@@ -358,6 +361,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setGame(next)
   }, [])
 
+  const newGame = useCallback((opts: NewGameOptions) => {
+    clearGame()
+    clearQuarantine()
+    const next = Game.createNew(opts)
+    saveGame(next)
+    lastSavedDateRef.current = next.date.getTime()
+    setGame(next)
+  }, [])
+
   const importGame = useCallback(
     (raw: string): { ok: true } | { ok: false; error: string } => {
       const parsed = Result.fromThrowable(
@@ -528,6 +540,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setReformAgenda,
         appointMinister,
         resetGame,
+        newGame,
         importGame,
         exportSnapshotJson,
         saveToSlot: saveToSlotAction,
@@ -556,6 +569,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setReformAgenda,
       appointMinister,
       resetGame,
+      newGame,
       importGame,
       exportSnapshotJson,
       saveToSlotAction,

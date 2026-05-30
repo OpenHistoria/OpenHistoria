@@ -28,8 +28,13 @@ describe("CountryStatsProvider", () => {
     expect(stats.code).toBe("FR")
   })
 
-  it("throws for unknown nation", async () => {
-    await expect(provider.fetch("ZZ" as NationCode)).rejects.toThrow()
-    expect(() => provider.fetchSync("ZZ" as NationCode)).toThrow()
+  it("synthesises generic stats for an uncurated nation", async () => {
+    const sync = provider.fetchSync("KE" as NationCode)
+    expect(sync.code).toBe("KE")
+    expect(sync.name).toBe("Kenya")
+    expect(sync.economy.gdpUsd).toBeGreaterThan(0)
+    expect(sync.demographics.population).toBeGreaterThan(0)
+    const async = await provider.fetch("KE" as NationCode)
+    expect(async.code).toBe("KE")
   })
 })

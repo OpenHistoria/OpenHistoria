@@ -4,6 +4,13 @@ export {
   REFORM_AGENDAS,
   SPEED_MS_PER_DAY,
 } from "./game"
+export type { NewGameOptions } from "./game"
+export {
+  countryName,
+  isKnownCountry,
+  WORLD_COUNTRIES,
+} from "./countries"
+export type { CountryListEntry } from "./countries"
 export { buildRetrospective } from "./retrospective"
 export type { Retrospective } from "./retrospective"
 export {
@@ -67,7 +74,20 @@ export type {
   SaveSlotId,
   StorageError,
 } from "./storage"
-export { CountryStatsProvider } from "./country-stats"
+export {
+  buildCountryStats,
+  CountryStatsProvider,
+  synthesizeCountryStats,
+} from "./country-stats"
+export {
+  initWorldElections,
+  resolveWorldElections,
+} from "./succession"
+export type {
+  NationElection,
+  WorldElections,
+  WorldElectionAction,
+} from "./succession"
 export type {
   CountryStats,
   Demographics,

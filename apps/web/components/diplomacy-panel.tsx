@@ -29,6 +29,11 @@ const relDateFmt = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 })
 
+const electionDateFmt = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+})
+
 interface DiplomacyRow {
   code: string
   name: string
@@ -36,6 +41,7 @@ interface DiplomacyRow {
   allied: boolean
   lastInteractionAt: string | null
   lastEconomicActionAt: string | null
+  nextElectionAt: string | null
 }
 
 const ECONOMIC_COOLDOWN_DAYS = 90
@@ -56,9 +62,10 @@ export function DiplomacyPanel() {
         allied: rel?.allied ?? false,
         lastInteractionAt: rel?.lastInteractionAt ?? null,
         lastEconomicActionAt: rel?.lastEconomicActionAt ?? null,
+        nextElectionAt: game.worldElections?.[p.code]?.nextAt ?? null,
       }
     }).sort((a, b) => b.opinion - a.opinion)
-  }, [game?.relations])
+  }, [game?.relations, game?.worldElections])
 
   if (!game) return null
   const today = game.date.getTime()
@@ -267,6 +274,14 @@ function DiplomacyRowItem({
                 {(profile.activity * 100).toFixed(0)}%
               </span>
             </div>
+            {row.nextElectionAt ? (
+              <div className="flex items-baseline justify-between">
+                <span className="text-muted-foreground">Next election</span>
+                <span className="tabular-nums">
+                  {electionDateFmt.format(new Date(row.nextElectionAt))}
+                </span>
+              </div>
+            ) : null}
             {Object.keys(profile.reactsTo).length > 0 ? (
               <div>
                 <div className="text-muted-foreground">Reacts to</div>

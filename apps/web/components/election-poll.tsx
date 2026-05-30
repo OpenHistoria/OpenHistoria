@@ -24,7 +24,7 @@ interface Rival {
   thrivesWhenUnemploymentAbove?: number
 }
 
-const RIVALS: Rival[] = [
+const FR_RIVALS: Rival[] = [
   {
     name: "Marine Le Pen",
     party: "Rassemblement National",
@@ -41,9 +41,31 @@ const RIVALS: Rival[] = [
   },
 ]
 
+// Generic challengers for any non-curated country, so the poll reads sensibly
+// without naming real opposition figures we don't have data for.
+const GENERIC_RIVALS: Rival[] = [
+  {
+    name: "Main opposition",
+    party: "Opposition bloc",
+    colorClass: "bg-destructive/80",
+    shareWeight: 0.55,
+    thrivesWhenApprovalBelow: 35,
+  },
+  {
+    name: "Insurgent challenger",
+    party: "Populist movement",
+    colorClass: "bg-amber-500/80",
+    shareWeight: 0.45,
+    thrivesWhenUnemploymentAbove: 8,
+  },
+]
+
 export function ElectionPoll() {
   const game = useGame()
   if (!game) return null
+
+  const RIVALS = game.nation === "FR" ? FR_RIVALS : GENERIC_RIVALS
+  const electionYear = game.electionDate.slice(0, 4)
 
   const onTrack = evaluateReformAgenda(game)
   const agenda = game.reformAgenda
@@ -102,7 +124,7 @@ export function ElectionPoll() {
     <div className="rounded-tl-md border-t border-l bg-background/85 px-3 py-2 text-xs shadow-lg backdrop-blur-sm">
       <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
         <VoteIcon className="size-3" />
-        <span>Projected 2027 first round</span>
+        <span>Projected {electionYear} first round</span>
       </div>
       <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
         <span

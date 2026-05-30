@@ -3,6 +3,30 @@
 Notable changes are grouped by round. Each round corresponds to a single
 `feat:` commit on `main`; the list is curated, not exhaustive.
 
+## Round 15
+- **Play any country.** A new-game flow lets you pick any of ~190 nations
+  and take charge of its current leader, starting *today*. France keeps its
+  curated cabinet, events, and 2027 election; every other country is
+  enriched from live World Bank + Wikidata data (with a deterministic
+  offline fallback) and gets a synthesised terminal election 11 months in.
+- `Game.createNew(opts)` now accepts `{ nation, character, stats,
+  startedAt, electionDate }`; `electionDate` is part of the snapshot
+  (defaulted on read for older saves). `NationCode`/`CharacterId` are now
+  open strings.
+- `CountryStatsProvider` never throws — it synthesises plausible stats for
+  any ISO code; `buildCountryStats` assembles a full stat block from fetched
+  World Bank / REST Countries data plus leader names.
+- HUD, welcome dialog, election countdown, and projected-poll all read the
+  game's own nation, leader, and election date instead of hardcoded France.
+- **Elections & power succession everywhere.** Your own mandate still ends in
+  a terminal election, now scored with an explicit succession (your endorsed
+  successor takes office, or the opposition forms the next government). Every
+  *foreign* nation runs its own electoral/succession calendar (`succession.ts`,
+  stored as `worldElections` in the snapshot): democracies turn over often,
+  autocracies rarely. When a transition comes due the engine recalibrates your
+  bilateral opinion — and may lapse an alliance — and logs it in the briefing.
+  The diplomacy panel shows each nation's next election.
+
 ## Round 14
 - **Debt interest** is now a real ongoing cost: 2.5%/yr on the outstanding
   debt stock, folded into `getCashflow.annualInterest` and the daily

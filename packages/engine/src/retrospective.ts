@@ -72,7 +72,7 @@ export function buildRetrospective(game: Game): Retrospective {
     paragraphs.push(
       `The cabinet was reshuffled ${cabinetReshuffles.length} time${
         cabinetReshuffles.length === 1 ? "" : "s"
-      } during the term — each appointment recalibrated the policy stack the Élysée could rely on.`
+      } during the term — each appointment recalibrated the policy stack the government could rely on.`
     )
   }
 
@@ -155,7 +155,7 @@ function diplomacyParagraph(
     .map(([code]) => code)
     .join(", ")
   if (allyCount > 0) {
-    return `France stood by ${allyCount} formal allies (${alliedNames}) when the term ended — the architecture of the post-2026 alliance system bears your signature.`
+    return `${game.stats.name} stood by ${allyCount} formal allies (${alliedNames}) when the term ended — the architecture of the post-2026 alliance system bears your signature.`
   }
   return `Foreign policy ended with no standing alliances on the books, though ${trades} bilateral trade deal${trades === 1 ? "" : "s"} and ${sanctions} sanction${sanctions === 1 ? "" : "s"} package${sanctions === 1 ? "" : "s"} marked an active term abroad.`
 }

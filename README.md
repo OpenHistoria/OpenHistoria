@@ -8,9 +8,13 @@ A grand strategy sandbox game built on a tickable, deterministic engine. Open
 source alternative to Pax Historia.
 
 You take charge of a real-world nation 11 months before an election and shape
-the country's economy, diplomacy, and politics until the campaign ends. The
-current playable nation is France (Macron's second term, May 2026 →
-April 2027); the engine is structured to add more.
+the country's economy, diplomacy, and politics until the campaign ends. Pick
+**any of ~190 countries** at game start and govern its current leader, starting
+today. France is the curated flagship scenario (Macron's second term, with
+hand-authored events, a full cabinet, and the 2027 presidential election);
+every other country is built from live World Bank + Wikidata data with a
+deterministic offline fallback, and votes in a synthesised election 11 months
+into the mandate.
 
 ## What's in it
 
@@ -41,7 +45,10 @@ April 2027); the engine is structured to add more.
    bonds are refused outright past 160% debt/GDP.
 5. **Manage diplomacy**: propose alliances, send SMS / tweets / calls /
    letters to other heads of state. The foreign minister speeds drift toward
-   each nation's baseline opinion.
+   each nation's baseline opinion. Foreign nations hold their own elections
+   and leadership successions on a rolling calendar — a new government can
+   swing opinion toward or against you, and a hostile turnover can lapse an
+   alliance.
 6. **Win or lose** at the 2027 election based on approval + unemployment and
    whether your reform agenda succeeded. Or lose early to bankruptcy
    (treasury < −€500B for 30d) or impeachment (approval < 15% for 30d).

@@ -513,6 +513,57 @@ export function getEventSeverity(event: EventDefinition): EventSeverity {
   return event.severity ?? "medium"
 }
 
+/** Stable id of the synthesised election for a given nation. */
+export function electionEventId(nation: NationCode): string {
+  return `${String(nation).toLowerCase()}-election`
+}
+
+/**
+ * True when the curated EVENT_LIBRARY already ships a terminal election event
+ * for this nation (currently only France). When true, the engine relies on the
+ * curated event and does NOT synthesise a generic one.
+ */
+export function nationHasCuratedElection(nation: NationCode): boolean {
+  return EVENT_LIBRARY.some(
+    (e) => e.nation === nation && e.category === "election"
+  )
+}
+
+/**
+ * Build a generic terminal election event for any country that lacks curated
+ * content. The outcome is scored by `computeOutcome` exactly like France's
+ * curated election — on approval, unemployment, and reform-agenda success — so
+ * every country has a real win/lose condition at the end of its mandate.
+ */
+export function synthesizeElectionEvent(
+  nation: NationCode,
+  electionDate: string,
+  leaderName?: string
+): EventDefinition {
+  const who = leaderName?.trim() || "the incumbent"
+  return {
+    id: electionEventId(nation),
+    nation,
+    category: "election",
+    severity: "high",
+    date: electionDate,
+    title: "Election — final verdict",
+    description: `The mandate ends and voters go to the polls. ${who} cannot count on the office alone — the result is determined by your approval rating and the country's economic state.`,
+    choices: [
+      {
+        id: "endorse-successor",
+        label: "Back your chosen successor",
+        effects: { terminal: true },
+      },
+      {
+        id: "stay-neutral",
+        label: "Stay above the fray",
+        effects: { terminal: true, approval: -2 },
+      },
+    ],
+  }
+}
+
 /**
  * Convert "YYYY-MM-DD" to the UTC-midnight timestamp of that day. We compare
  * in numeric UTC space so an in-game `Date` that lands on, say, 04:00 UTC

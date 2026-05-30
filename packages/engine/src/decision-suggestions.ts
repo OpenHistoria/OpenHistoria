@@ -157,6 +157,52 @@ const FR_SUGGESTIONS: DecisionSuggestion[] = [
   },
 ]
 
+// Nation-agnostic fallbacks so any country is playable offline. The LLM
+// `/api/suggest-decisions` route produces country-specific ideas when a key is
+// configured; these are the deterministic baseline when it isn't.
+const GENERIC_SUGGESTIONS: DecisionSuggestion[] = [
+  {
+    id: "gen-infra-grid",
+    kind: "construction:infrastructure",
+    title: "National grid modernisation",
+    prompt:
+      "Modernise the national electricity grid to cut outages and connect new renewable capacity.",
+    hint: "Reliability + growth · multi-year horizon",
+  },
+  {
+    id: "gen-ind-manufacturing",
+    kind: "construction:industrial",
+    title: "Advanced manufacturing hub",
+    prompt:
+      "Build an advanced manufacturing hub near the largest industrial city to anchor exports and jobs.",
+    hint: "Industrial base · creates jobs",
+  },
+  {
+    id: "gen-civ-hospitals",
+    kind: "construction:civilian",
+    title: "Regional hospital expansion",
+    prompt:
+      "Expand regional hospital capacity and primary-care clinics outside the capital.",
+    hint: "Visible public service · approval lift",
+  },
+  {
+    id: "gen-dip-summit",
+    kind: "diplomacy",
+    title: "Host a regional summit",
+    prompt:
+      "Host a regional trade and security summit in the capital with neighbouring heads of state.",
+    hint: "Builds standing with neighbours",
+  },
+  {
+    id: "gen-eco-sez",
+    kind: "economic",
+    title: "Special economic zone",
+    prompt:
+      "Establish a special economic zone with tax incentives to attract foreign investment.",
+    hint: "Growth-oriented · debt-light",
+  },
+]
+
 const BY_NATION: Partial<Record<NationCode, DecisionSuggestion[]>> = {
   FR: FR_SUGGESTIONS,
 }
@@ -164,7 +210,7 @@ const BY_NATION: Partial<Record<NationCode, DecisionSuggestion[]>> = {
 export function getSuggestionsForNation(
   nation: NationCode
 ): DecisionSuggestion[] {
-  return BY_NATION[nation] ?? []
+  return BY_NATION[nation] ?? GENERIC_SUGGESTIONS
 }
 
 export const PROJECT_KIND_LABELS: Record<ProjectKind, string> = {

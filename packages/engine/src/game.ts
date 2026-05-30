@@ -5,9 +5,11 @@ import {
 } from "./country-stats"
 import { applyEconomyTick, sanitizeStats } from "./economy"
 import {
-  EVENT_LIBRARY,
+  electionEventId,
   getDueEvent,
   getEventSeverity,
+  nationHasCuratedElection,
+  synthesizeElectionEvent,
   type EventDefinition,
   type EventEffects,
   type EventSeverity,
@@ -39,9 +41,23 @@ import {
   lobbyApprovalContribution,
   type LobbyId,
 } from "./lobbies"
+import {
+  initWorldElections,
+  resolveWorldElections,
+  type WorldElections,
+} from "./succession"
 
-export type NationCode = "FR"
-export type CharacterId = "macron"
+/**
+ * ISO 3166-1 alpha-2 nation code. Any country is playable, so this is a plain
+ * string (e.g. "FR", "US", "KE") rather than a fixed union. France remains the
+ * curated default with hand-authored events and a cabinet.
+ */
+export type NationCode = string
+/**
+ * Identifier for the playable leader. France's curated leader is "macron";
+ * other countries use a slug derived from the current head of state.
+ */
+export type CharacterId = string
 export type GameSpeed = 1 | 2 | 3 | 4 | 5
 
 export const SPEED_MS_PER_DAY: Record<GameSpeed, number> = {
@@ -186,6 +202,11 @@ export interface GameSnapshot {
   character: CharacterId
   date: string
   startedAt: string
+  /**
+   * ISO date (YYYY-MM-DD) of the terminal election that ends the mandate.
+   * Optional on disk so pre-multi-country saves still load; defaulted on read.
+   */
+  electionDate?: string
   speed: GameSpeed
   paused: boolean
   projects: Project[]
@@ -213,6 +234,11 @@ export interface GameSnapshot {
   cabinet?: Record<string, string>
   /** Interest-group satisfactions in [0,100]; optional so older saves work. */
   lobbies?: Record<LobbyId, number>
+  /**
+   * Foreign-nation political calendar (next election/succession per nation).
+   * Optional so older saves still load; re-seeded on read when absent.
+   */
+  worldElections?: WorldElections
 }
 
 export type BriefingKind =
@@ -235,6 +261,7 @@ export interface BriefingEntry {
 interface GameFields {
   nation: NationCode
   character: CharacterId
+  electionDate: string
   date: Date
   startedAt: Date
   speed: GameSpeed
@@ -255,6 +282,7 @@ interface GameFields {
   triggeredWarnings: ReadonlySet<string>
   cabinet: CabinetAppointments
   lobbies: Record<LobbyId, number>
+  worldElections: WorldElections
 }
 
 const countryStatsProvider = new CountryStatsProvider()
@@ -277,9 +305,11 @@ const WARN_BANKRUPTCY_TREASURY = -300_000
 const WARN_IMPEACHMENT_APPROVAL = 22
 const ELECTION_COUNTDOWN_DAYS = [90, 30, 7] as const
 
-// Anchor for election-countdown reminders. Picked up by ID from EVENT_LIBRARY
-// so changing the date in events.ts stays load-bearing.
-const ELECTION_EVENT_ID = "fr-2027-presidential-election"
+// France's curated presidential election. Other nations get a synthesised
+// election scheduled `MANDATE_LENGTH_MONTHS` after their start date.
+const FR_ELECTION_DATE = "2027-04-25"
+const MANDATE_LENGTH_MONTHS = 11
+const FR_DEFAULT_START = "2026-05-21T08:00:00.000Z"
 
 // Failure thresholds. Tuned so a player has weeks of warning before the run
 // ends, not minutes — but they're real teeth.
@@ -321,9 +351,57 @@ function normalizeNationKey(code: string): string {
   return code.trim().toUpperCase()
 }
 
+function isoDateOnly(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function addMonths(d: Date, months: number): Date {
+  const next = new Date(d.getTime())
+  next.setUTCMonth(next.getUTCMonth() + months)
+  return next
+}
+
+/** France keeps its curated 2027 date; everyone else votes 11 months in. */
+function defaultElectionDate(nation: string, start: Date): string {
+  if (normalizeNationKey(nation) === "FR") return FR_ELECTION_DATE
+  return isoDateOnly(addMonths(start, MANDATE_LENGTH_MONTHS))
+}
+
+/** A stable, URL-safe leader id. France's curated leader stays "macron". */
+function characterSlug(stats: CountryStats, nation: string): string {
+  if (normalizeNationKey(nation) === "FR") return "macron"
+  const slug = stats.government.headOfState
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  return slug || normalizeNationKey(nation).toLowerCase()
+}
+
+/** Whole months between two dates, rounded — used for the start briefing. */
+function monthsBetween(from: Date, to: Date): number {
+  return Math.max(
+    0,
+    Math.round((to.getTime() - from.getTime()) / (30.44 * 86_400_000))
+  )
+}
+
+export interface NewGameOptions {
+  /** ISO alpha-2 nation code. Defaults to "FR". */
+  nation?: string
+  /** Leader id; defaults to a slug of the head of state ("macron" for FR). */
+  character?: string
+  /** Starting country stats; defaults to the roster/synthesised entry. */
+  stats?: CountryStats
+  /** Game start instant; defaults to France's curated 2026 start. */
+  startedAt?: Date
+  /** Terminal election date (YYYY-MM-DD); defaults per nation. */
+  electionDate?: string
+}
+
 export class Game {
   readonly nation: NationCode
   readonly character: CharacterId
+  readonly electionDate: string
   readonly date: Date
   readonly startedAt: Date
   readonly speed: GameSpeed
@@ -344,10 +422,12 @@ export class Game {
   readonly triggeredWarnings: ReadonlySet<string>
   readonly cabinet: CabinetAppointments
   readonly lobbies: Record<LobbyId, number>
+  readonly worldElections: WorldElections
 
   constructor(init: GameFields) {
     this.nation = init.nation
     this.character = init.character
+    this.electionDate = init.electionDate
     this.date = init.date
     this.startedAt = init.startedAt
     this.speed = init.speed
@@ -368,14 +448,25 @@ export class Game {
     this.triggeredWarnings = init.triggeredWarnings
     this.cabinet = init.cabinet
     this.lobbies = init.lobbies
+    this.worldElections = init.worldElections
   }
 
-  static createNew(): Game {
-    const start = new Date("2026-05-21T08:00:00.000Z")
-    const stats = countryStatsProvider.fetchSync("FR")
+  static createNew(opts: NewGameOptions = {}): Game {
+    const nation = normalizeNationKey(opts.nation ?? "FR")
+    const start = opts.startedAt ?? new Date(FR_DEFAULT_START)
+    const stats = opts.stats ?? countryStatsProvider.fetchSync(nation)
+    const character = opts.character ?? characterSlug(stats, nation)
+    const electionDate =
+      opts.electionDate ?? defaultElectionDate(nation, start)
+    const monthsLeft = monthsBetween(
+      start,
+      new Date(`${electionDate}T00:00:00.000Z`)
+    )
+    const leader = stats.government.headOfState
     return new Game({
-      nation: "FR",
-      character: "macron",
+      nation,
+      character,
+      electionDate,
       date: start,
       startedAt: start,
       speed: 1,
@@ -389,9 +480,8 @@ export class Game {
       briefing: [
         makeBriefing(start, {
           kind: "milestone",
-          title: "Second term in progress",
-          detail:
-            "11 months until the 2027 presidential election. Approval: 38%.",
+          title: `${leader} — mandate in progress`,
+          detail: `${monthsLeft} month${monthsLeft === 1 ? "" : "s"} until the next election in ${stats.name}. Approval: ${INITIAL_APPROVAL}%.`,
         }),
       ],
       gameOver: null,
@@ -411,6 +501,7 @@ export class Game {
       triggeredWarnings: new Set<string>(),
       cabinet: {},
       lobbies: defaultLobbies(),
+      worldElections: initWorldElections(nation, start),
     })
   }
 
@@ -418,6 +509,7 @@ export class Game {
     return new Game({
       nation: this.nation,
       character: this.character,
+      electionDate: this.electionDate,
       date: this.date,
       startedAt: this.startedAt,
       speed: this.speed,
@@ -438,6 +530,7 @@ export class Game {
       triggeredWarnings: this.triggeredWarnings,
       cabinet: this.cabinet,
       lobbies: this.lobbies,
+      worldElections: this.worldElections,
       ...overrides,
     })
   }
@@ -814,6 +907,37 @@ export class Game {
     })
   }
 
+  /** UTC-midnight ms of the configured election date. */
+  private get electionDateMs(): number {
+    return Date.parse(`${this.electionDate}T00:00:00.000Z`)
+  }
+
+  /**
+   * For nations without a curated election in EVENT_LIBRARY, synthesise the
+   * terminal election once `date` reaches `electionDate`. Returns null for
+   * France (which uses its hand-authored event) and once the election fired.
+   */
+  private maybeElectionEvent(
+    date: Date,
+    triggeredIds: ReadonlySet<string>
+  ): EventDefinition | null {
+    if (nationHasCuratedElection(this.nation)) return null
+    if (triggeredIds.has(electionEventId(this.nation))) return null
+    const dayMs = Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate()
+    )
+    if (!Number.isFinite(this.electionDateMs) || dayMs < this.electionDateMs) {
+      return null
+    }
+    return synthesizeElectionEvent(
+      this.nation,
+      this.electionDate,
+      this.stats.government.headOfState
+    )
+  }
+
   tick(days: number): Game {
     if (this.gameOver || this.pendingEvent || this.paused || days <= 0) return this
     const newDate = new Date(this.date.getTime() + days * 86_400_000)
@@ -870,7 +994,9 @@ export class Game {
     const triggeredIds = new Set(triggeredEvents.map((t) => t.id))
     let pendingEvent: EventDefinition | null = this.pendingEvent
     if (!pendingEvent) {
-      const due = getDueEvent(newDate, this.nation, triggeredIds, triggeredEvents)
+      const due =
+        this.maybeElectionEvent(newDate, triggeredIds) ??
+        getDueEvent(newDate, this.nation, triggeredIds, triggeredEvents)
       const generated = due
         ? null
         : maybeGenerateProceduralEvent({
@@ -953,6 +1079,26 @@ export class Game {
       }
     }
 
+    // Foreign elections & leadership successions. Resolves any transition due
+    // since the last tick, recalibrating bilateral opinion and (rarely)
+    // lapsing alliances when a government turns over.
+    const electionsOutcome = resolveWorldElections({
+      worldElections: this.worldElections,
+      relations: ai.relations,
+      playerNation: this.nation,
+      from: this.date,
+      to: newDate,
+    })
+    const relations = electionsOutcome.relations
+    const worldElections = electionsOutcome.worldElections
+    for (const a of electionsOutcome.actions) {
+      briefing = pushTo(briefing, makeBriefing(newDate, {
+        kind: a.briefingKind,
+        title: a.briefingTitle,
+        detail: a.briefingDetail,
+      }))
+    }
+
     // Lobby drift toward baselines + their small approval contribution.
     const lobbyBaselines = computeLobbyBaselines(
       // We need to evaluate baselines against a "current" snapshot. The
@@ -1008,7 +1154,7 @@ export class Game {
     const lastTs = lastSample ? Date.parse(lastSample.date) : -Infinity
     if (newDate.getTime() - lastTs >= 7 * 86_400_000) {
       const opinions: Record<string, number> = {}
-      for (const [code, rel] of Object.entries(ai.relations)) {
+      for (const [code, rel] of Object.entries(relations)) {
         opinions[code] = rel.opinion
       }
       const sample: HistorySample = {
@@ -1063,12 +1209,11 @@ export class Game {
       nextWarnings.delete("warn:impeachment_approach")
     }
 
-    // Election countdown.
-    const election = EVENT_LIBRARY.find((e) => e.id === ELECTION_EVENT_ID)
-    if (election) {
-      const electionMs = Date.parse(election.date + "T00:00:00.000Z")
+    // Election countdown — anchored on the game's own election date so every
+    // nation (not just France) gets the run-up reminders.
+    if (Number.isFinite(this.electionDateMs)) {
       const daysLeft = Math.round(
-        (electionMs - newDate.getTime()) / 86_400_000
+        (this.electionDateMs - newDate.getTime()) / 86_400_000
       )
       for (const milestone of ELECTION_COUNTDOWN_DAYS) {
         const warnId = `warn:election_t-${milestone}`
@@ -1127,7 +1272,7 @@ export class Game {
       briefing,
       pendingEvent,
       paused: pendingEvent ? true : this.paused,
-      relations: ai.relations,
+      relations,
       triggeredEvents,
       history,
       bankruptcyDays,
@@ -1135,6 +1280,7 @@ export class Game {
       gameOver,
       triggeredWarnings: nextWarnings,
       lobbies,
+      worldElections,
     })
   }
 
@@ -1189,6 +1335,7 @@ export class Game {
       version: 5,
       nation: this.nation,
       character: this.character,
+      electionDate: this.electionDate,
       date: this.date.toISOString(),
       startedAt: this.startedAt.toISOString(),
       speed: this.speed,
@@ -1212,6 +1359,7 @@ export class Game {
       triggeredWarnings: Array.from(this.triggeredWarnings),
       cabinet: { ...this.cabinet },
       lobbies: { ...this.lobbies },
+      worldElections: structuredClone(this.worldElections),
     }
   }
 
@@ -1223,6 +1371,8 @@ export class Game {
       return new Game({
         nation: s.nation,
         character: s.character,
+        electionDate:
+          s.electionDate ?? defaultElectionDate(s.nation, new Date(s.startedAt)),
         date: new Date(s.date),
         startedAt: new Date(s.startedAt),
         speed: s.speed ?? 1,
@@ -1243,6 +1393,9 @@ export class Game {
         triggeredWarnings: new Set(s.triggeredWarnings ?? []),
         cabinet: s.cabinet ?? {},
         lobbies: s.lobbies ?? defaultLobbies(),
+        worldElections:
+          s.worldElections ??
+          initWorldElections(s.nation, new Date(s.startedAt)),
       })
     }
     return migrateLegacy(snapshot)
@@ -1329,6 +1482,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
     return new Game({
       nation: s.nation,
       character: s.character,
+      electionDate: defaultElectionDate(s.nation, new Date(s.startedAt)),
       date: new Date(s.date),
       startedAt: new Date(s.startedAt),
       speed: s.speed ?? 1,
@@ -1349,6 +1503,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       triggeredWarnings: new Set<string>(),
       cabinet: {},
       lobbies: defaultLobbies(),
+      worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
     })
   }
   if ((snapshot as LegacyV3Snapshot).version === 3) {
@@ -1357,6 +1512,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
     return new Game({
       nation: s.nation,
       character: s.character,
+      electionDate: defaultElectionDate(s.nation, new Date(s.startedAt)),
       date: new Date(s.date),
       startedAt: new Date(s.startedAt),
       speed: s.speed ?? 1,
@@ -1377,6 +1533,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       triggeredWarnings: new Set<string>(),
       cabinet: {},
       lobbies: defaultLobbies(),
+      worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
     })
   }
   if ((snapshot as LegacyV2Snapshot).version === 2) {
@@ -1385,6 +1542,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
     return new Game({
       nation: s.nation,
       character: s.character,
+      electionDate: defaultElectionDate(s.nation, new Date(s.startedAt)),
       date: new Date(s.date),
       startedAt: new Date(s.startedAt),
       speed: s.speed ?? 1,
@@ -1405,6 +1563,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       triggeredWarnings: new Set<string>(),
       cabinet: {},
       lobbies: defaultLobbies(),
+      worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
     })
   }
   const s = snapshot as LegacyV1Snapshot
@@ -1412,6 +1571,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
   return new Game({
     nation: s.nation,
     character: s.character,
+    electionDate: defaultElectionDate(s.nation, new Date(s.startedAt)),
     date: new Date(s.date),
     startedAt: new Date(s.startedAt),
     speed: s.speed ?? 1,
@@ -1444,6 +1604,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
     triggeredWarnings: new Set<string>(),
     cabinet: {},
     lobbies: defaultLobbies(),
+    worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
   })
 }
 
@@ -1519,12 +1680,17 @@ function computeOutcome(game: Game, event: EventDefinition): GameOverState {
         ? ` Your "${def.short}" agenda was judged a success.`
         : ` Your "${def.short}" agenda fell short.`
       : ""
+    const year = game.electionDate.slice(0, 4)
+    // Power succession: whoever takes office next depends on the result.
+    const successionNote = won
+      ? ` Power passes to your endorsed successor; ${game.stats.government.headOfState}'s line continues.`
+      : ` The opposition forms the next government; the ${game.stats.government.headOfState} era ends.`
     return {
       outcome: won ? "won" : "lost",
       cause: won ? "election_won" : "election_lost",
       reason: won
-        ? `Your endorsed candidate carried the 2027 election with ${game.approval.toFixed(0)}% approval behind them.${agendaNote}`
-        : `Voters rejected your legacy. Final approval: ${game.approval.toFixed(0)}%. Unemployment: ${game.stats.economy.unemploymentPct.toFixed(1)}%.${agendaNote}`,
+        ? `Your endorsed candidate carried the ${year} election with ${game.approval.toFixed(0)}% approval behind them.${successionNote}${agendaNote}`
+        : `Voters rejected your legacy. Final approval: ${game.approval.toFixed(0)}%. Unemployment: ${game.stats.economy.unemploymentPct.toFixed(1)}%.${successionNote}${agendaNote}`,
       date: game.date.toISOString(),
     }
   }

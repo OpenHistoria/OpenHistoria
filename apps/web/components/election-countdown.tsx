@@ -6,20 +6,18 @@ import { CalendarClockIcon } from "lucide-react"
 
 import { useGame } from "@/components/game-provider"
 
-// The terminal election event id used by the engine for the countdown anchor.
-const ELECTION_ISO = "2027-04-25"
-
 /**
- * Compact banner with the days remaining to the 2027 election plus a one-line
+ * Compact banner with the days remaining to the election plus a one-line
  * reform-agenda status. Lives next to the time controls so the player can
- * always see "what's the headline number right now".
+ * always see "what's the headline number right now". The election date is the
+ * game's own `electionDate`, so it works for any country.
  */
 export function ElectionCountdown() {
   const game = useGame()
   if (!game) return null
   if (game.gameOver) return null
 
-  const electionMs = Date.parse(`${ELECTION_ISO}T00:00:00.000Z`)
+  const electionMs = Date.parse(`${game.electionDate}T00:00:00.000Z`)
   const daysLeft = Math.max(
     0,
     Math.round((electionMs - game.date.getTime()) / 86_400_000)
