@@ -318,6 +318,10 @@ const ADDPROJECT_TREASURY_BUFFER = 50_000
 // `triggeredWarnings` set so we don't spam the briefing.
 const WARN_BANKRUPTCY_TREASURY = -300_000
 const WARN_IMPEACHMENT_APPROVAL = 22
+// Inflation (%) at which a one-shot cost-of-living crisis briefing fires;
+// re-arms once inflation falls back below WARN_INFLATION_CLEAR.
+const WARN_INFLATION_PCT = 5
+const WARN_INFLATION_CLEAR = 4
 const ELECTION_COUNTDOWN_DAYS = [90, 30, 7] as const
 
 // France's curated presidential election. Other nations get a synthesised
@@ -1266,6 +1270,27 @@ export class Game {
       nextWarnings.has("warn:impeachment_approach")
     ) {
       nextWarnings.delete("warn:impeachment_approach")
+    }
+
+    // Cost-of-living crisis: inflation running hot bleeds approval and lifts
+    // the cost of servicing the debt. Fire once, re-arm when it cools.
+    const inflationNow = stats.economy.inflationPct
+    if (
+      inflationNow >= WARN_INFLATION_PCT &&
+      !nextWarnings.has("warn:inflation_crisis")
+    ) {
+      nextWarnings.add("warn:inflation_crisis")
+      briefing = pushTo(briefing, makeBriefing(newDate, {
+        kind: "warning",
+        title: "Cost-of-living crisis",
+        detail: `Inflation at ${inflationNow.toFixed(1)}% is squeezing households and approval. Cooling it means tighter budgets or higher taxes.`,
+      }))
+    }
+    if (
+      inflationNow < WARN_INFLATION_CLEAR &&
+      nextWarnings.has("warn:inflation_crisis")
+    ) {
+      nextWarnings.delete("warn:inflation_crisis")
     }
 
     // Election countdown — anchored on the game's own election date so every

@@ -4,6 +4,7 @@ import {
   evaluateReformAgenda,
   getCashflow,
   getNextEvent,
+  INFLATION_COMFORT_CEILING,
   REFORM_AGENDAS,
 } from "@workspace/engine"
 import { Button } from "@workspace/ui/components/button"
@@ -60,6 +61,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
+}
+
+// Inflation reads green inside the comfort band, amber as it heats, red once a
+// cost-of-living squeeze (and the warning briefing) kicks in past ~5%.
+function inflationColor(inflationPct: number): string {
+  if (inflationPct >= 5) return "text-destructive"
+  if (inflationPct > INFLATION_COMFORT_CEILING) return "text-amber-500"
+  return "text-foreground"
 }
 
 function daysUntil(from: Date, to: Date): number {
@@ -190,7 +199,11 @@ export function CountryStatsPanel() {
         <StatRow
           icon={<TrendingUpIcon className="size-4" />}
           label="Inflation"
-          value={formatPercent(stats.economy.inflationPct)}
+          value={
+            <span className={`tabular-nums ${inflationColor(stats.economy.inflationPct)}`}>
+              {formatPercent(stats.economy.inflationPct)}
+            </span>
+          }
         />
         <StatRow
           icon={<ScaleIcon className="size-4" />}

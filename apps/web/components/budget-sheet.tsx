@@ -68,7 +68,9 @@ export function BudgetSheet({
           <SheetDescription>
             Two levers set the fiscal stance. Taxes trade treasury revenue
             against popularity; spending trades the deficit against jobs and
-            approval. Lobbies react the moment a budget is announced.
+            approval. Push spending too hard and inflation overheats — a
+            cost-of-living squeeze that bleeds approval and raises debt costs.
+            Lobbies react the moment a budget is announced.
           </SheetDescription>
         </SheetHeader>
         <div className="grid gap-4 px-4 pb-4">

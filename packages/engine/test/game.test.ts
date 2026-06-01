@@ -185,6 +185,24 @@ describe("Game.tick", () => {
     expect(ticked.paused).toBe(true)
   })
 
+  it("fires a one-shot cost-of-living warning when inflation runs hot", () => {
+    const base = freshGame().with({ paused: false })
+    const hot = base.with({
+      stats: {
+        ...base.stats,
+        economy: { ...base.stats.economy, inflationPct: 6 },
+      },
+    })
+    const ticked = tickDays(hot, 1)
+    const crisis = ticked.briefing.filter((b) => b.title === "Cost-of-living crisis")
+    expect(crisis).toHaveLength(1)
+    // Does not re-fire on a subsequent tick while still hot.
+    const again = tickDays(ticked, 1)
+    expect(
+      again.briefing.filter((b) => b.title === "Cost-of-living crisis")
+    ).toHaveLength(1)
+  })
+
   it("is a no-op while paused or with a pending event", () => {
     const game = freshGame()
     expect(tickDays(game, 1)).toBe(game)

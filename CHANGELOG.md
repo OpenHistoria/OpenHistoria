@@ -3,6 +3,22 @@
 Notable changes are grouped by round. Each round corresponds to a single
 `feat:` commit on `main`; the list is curated, not exhaustive.
 
+## Round 17
+- **Inflation is now a live macroeconomic pressure** (previously displayed but
+  inert). It drifts toward a fiscal-sensitive target — spending boosts heat it,
+  tax hikes and austerity cool it — and feeds back into the game:
+  - **Cost-of-living squeeze**: inflation above a 3% comfort ceiling drags
+    approval daily (`costOfLivingApprovalDragPerDay`), surfaced as a line in
+    the approval breakdown.
+  - **Higher debt costs**: the effective debt-service rate rises with
+    above-target inflation (`effectiveDebtRate`), folded into `getCashflow`.
+  - A one-shot **cost-of-living crisis** briefing fires past 5% and re-arms
+    when inflation cools back below 4%.
+- The country-stats panel colour-codes inflation (green / amber / red), and the
+  budget sheet warns that over-stimulating overheats prices. This closes the
+  loop on Round 16: stimulate for jobs and approval, but overheat and you pay
+  for it in cost-of-living and bond yields.
+
 ## Round 16
 - **Budget & fiscal policy.** Two new player-controlled levers — a tax stance
   and a public-spending level, each from −2 (deep cuts / austerity) to +2

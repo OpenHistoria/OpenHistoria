@@ -89,6 +89,19 @@ export function unemploymentTargetShift(policy: FiscalPolicy): number {
   )
 }
 
+// Demand-side pressure on prices. Spending boosts heat inflation (more demand);
+// tax hikes and austerity cool it (less disposable income, weaker demand).
+export const SPEND_INFLATION_TARGET_PER_NOTCH = 0.6
+export const TAX_INFLATION_TARGET_PER_NOTCH = -0.35
+
+/** Signed shift applied to the inflation drift target. */
+export function inflationTargetShift(policy: FiscalPolicy): number {
+  return (
+    SPEND_INFLATION_TARGET_PER_NOTCH * policy.spending +
+    TAX_INFLATION_TARGET_PER_NOTCH * policy.tax
+  )
+}
+
 function clampLever(v: number): FiscalLever {
   const r = Math.round(v)
   if (r <= -2) return -2

@@ -116,11 +116,20 @@ export type {
   EventSeverity,
   TriggeredEvent,
 } from "./events"
-export { applyEconomyTick, getCashflow, sanitizeStats } from "./economy"
+export {
+  applyEconomyTick,
+  costOfLivingApprovalDragPerDay,
+  effectiveDebtRate,
+  getCashflow,
+  INFLATION_COMFORT_CEILING,
+  INFLATION_TARGET,
+  sanitizeStats,
+} from "./economy"
 export type { CashflowSummary } from "./economy"
 export {
   approvalBaselineShift,
   FISCAL_LEVERS,
+  inflationTargetShift,
   NEUTRAL_FISCAL_POLICY,
   sanitizeFiscalPolicy,
   spendingExpenseMultiplier,

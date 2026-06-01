@@ -2,6 +2,7 @@
 
 import {
   approvalBaselineShift,
+  costOfLivingApprovalDragPerDay,
   evaluateReformAgenda,
   getCabinetEffects,
   getCashflow,
@@ -67,6 +68,17 @@ export function ApprovalBreakdown() {
         label: "Deficit penalty",
         annual: penaltyPerDay * 365,
         detail: `Treasury ${Math.round(game.treasury).toLocaleString()}M`,
+      })
+    }
+
+    // Cost-of-living squeeze: inflation above the comfort ceiling drags
+    // approval daily.
+    const colDrag = costOfLivingApprovalDragPerDay(game.stats.economy.inflationPct)
+    if (colDrag > 0) {
+      out.push({
+        label: "Cost of living",
+        annual: -colDrag * 365,
+        detail: `Inflation at ${game.stats.economy.inflationPct.toFixed(1)}%`,
       })
     }
 

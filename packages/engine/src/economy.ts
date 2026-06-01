@@ -1,6 +1,7 @@
 import type { CountryStats } from "./country-stats"
 import {
   approvalBaselineShift,
+  inflationTargetShift,
   NEUTRAL_FISCAL_POLICY,
   spendingExpenseMultiplier,
   taxRevenueMultiplier,
@@ -51,6 +52,33 @@ const TREASURY_PENALTY_PER_DAY = 0.05
 // French debt is heavily long-dated; the gameplay point is to make high
 // debt/GDP a real running cost, not a one-tick hit.
 const DEBT_INTEREST_RATE = 0.025
+// Inflation above target makes bond markets demand higher yields: each
+// percentage point of inflation over `INFLATION_TARGET` adds this much to the
+// effective debt-service rate.
+const DEBT_RATE_PER_INFLATION_POINT = 0.0015
+// Price stability band. Inflation above the comfort ceiling reads as a
+// cost-of-living squeeze and erodes approval; the drift target is the centre.
+export const INFLATION_TARGET = 2
+export const INFLATION_COMFORT_CEILING = 3
+// Daily approval drag per percentage point of inflation above the comfort
+// ceiling. At 6% inflation (3pp over) this is ~0.12/day ≈ 3.6/month.
+const INFLATION_APPROVAL_DRAG_PER_DAY = 0.04
+
+/**
+ * Daily approval drag from cost-of-living pressure at the given inflation
+ * level. Zero at or below the comfort ceiling, linear above it. Pure so the UI
+ * can surface the same number the tick applies.
+ */
+export function costOfLivingApprovalDragPerDay(inflationPct: number): number {
+  const over = Math.max(0, inflationPct - INFLATION_COMFORT_CEILING)
+  return over * INFLATION_APPROVAL_DRAG_PER_DAY
+}
+
+/** Effective annual debt-service rate, rising with above-target inflation. */
+export function effectiveDebtRate(inflationPct: number): number {
+  const over = Math.max(0, inflationPct - INFLATION_TARGET)
+  return DEBT_INTEREST_RATE + over * DEBT_RATE_PER_INFLATION_POINT
+}
 // Treasury floor at -€2T to keep arithmetic well-defined; below that we just
 // stop accumulating losses (the game-over check in Game will have fired well
 // before this is reached).
@@ -76,8 +104,12 @@ export function getCashflow(
   const projectMonthly = projects.reduce((sum, p) => sum + p.monthlyCost, 0)
   const projectAnnual = projectMonthly * 12
   // Debt service: outstanding stock × annual rate. publicDebtPctGdp is in %.
+  // The rate rises with above-target inflation (markets demand higher yields).
   const debtStock = gdpMillions * (stats.economy.publicDebtPctGdp / 100)
-  const annualInterest = Math.max(0, debtStock * DEBT_INTEREST_RATE)
+  const annualInterest = Math.max(
+    0,
+    debtStock * effectiveDebtRate(stats.economy.inflationPct)
+  )
   const annualExpenses =
     baselineSpending + unemploymentCost + projectAnnual + annualInterest
   const annualBalance = revenue - annualExpenses
@@ -122,6 +154,11 @@ export function applyEconomyTick(
     const penalty = TREASURY_PENALTY_PER_DAY * (1 + Math.min(3, depth)) * days
     approval = clampApproval(approval - penalty)
   }
+  // Cost-of-living squeeze: inflation above the comfort ceiling bleeds approval.
+  const colDrag = costOfLivingApprovalDragPerDay(input.stats.economy.inflationPct)
+  if (colDrag > 0) {
+    approval = clampApproval(approval - colDrag * days)
+  }
 
   const stats = drift(input.stats, days, fiscalPolicy)
 
@@ -162,9 +199,17 @@ function drift(
     economy.gdpUsd / pop,
     economy.gdpPerCapitaUsd
   )
+  // Inflation drifts toward a fiscal-sensitive target: spending boosts heat it,
+  // tax hikes / austerity cool it.
+  const inflationTarget = clamp(
+    INFLATION_TARGET + inflationTargetShift(fiscalPolicy),
+    0,
+    20
+  )
   economy.inflationPct = clamp(
     safeNumber(
-      economy.inflationPct + (2 - economy.inflationPct) * 0.05 * yearsFraction,
+      economy.inflationPct +
+        (inflationTarget - economy.inflationPct) * 0.05 * yearsFraction,
       economy.inflationPct
     ),
     0,
