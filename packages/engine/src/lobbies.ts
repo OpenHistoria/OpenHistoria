@@ -109,6 +109,15 @@ export function computeLobbyBaselines(game: Game): Record<LobbyId, number> {
   else if (treasury < -80_000) out.public_sector -= 10
   if (debtPct > 150) out.public_sector -= 8
 
+  // Sustained budget stance. Tax hikes + spending boosts please labour and the
+  // public sector and worry industry about the deficit; cuts/austerity flip the
+  // signs. Mirrors the one-shot reaction in Game.setFiscalPolicy so the levers
+  // hold their effect rather than decaying straight back to neutral.
+  const { tax, spending } = game.fiscalPolicy
+  out.public_sector += tax * 3 + spending * 4
+  out.unions += tax * 1.5 + spending * 4
+  out.industry += tax * -4 - spending * 2
+
   // Clamp to [0, 100].
   for (const id of LOBBY_IDS) {
     out[id] = Math.max(0, Math.min(100, out[id]))

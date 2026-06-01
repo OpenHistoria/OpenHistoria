@@ -1,4 +1,12 @@
 import type { CountryStats } from "./country-stats"
+import {
+  approvalBaselineShift,
+  NEUTRAL_FISCAL_POLICY,
+  spendingExpenseMultiplier,
+  taxRevenueMultiplier,
+  unemploymentTargetShift,
+  type FiscalPolicy,
+} from "./fiscal"
 import type { Project } from "./projects"
 
 const DAYS_PER_YEAR = 365.25
@@ -10,6 +18,8 @@ export interface EconomyTickInput {
   approval: number
   stats: CountryStats
   projects: readonly Project[]
+  /** Active budget levers. Defaults to neutral ("current policy"). */
+  fiscalPolicy?: FiscalPolicy
 }
 
 export interface EconomyTickResult {
@@ -49,11 +59,16 @@ const GDP_FLOOR = 1_000_000_000 // $1B — keeps per-capita math finite
 
 export function getCashflow(
   stats: CountryStats,
-  projects: readonly Project[]
+  projects: readonly Project[],
+  fiscalPolicy: FiscalPolicy = NEUTRAL_FISCAL_POLICY
 ): CashflowSummary {
   const gdpMillions = stats.economy.gdpUsd / 1_000_000
-  const revenue = gdpMillions * REVENUE_PCT_OF_GDP
-  const baselineSpending = gdpMillions * BASELINE_EXPENSES_PCT_OF_GDP
+  const revenue =
+    gdpMillions * REVENUE_PCT_OF_GDP * taxRevenueMultiplier(fiscalPolicy)
+  const baselineSpending =
+    gdpMillions *
+    BASELINE_EXPENSES_PCT_OF_GDP *
+    spendingExpenseMultiplier(fiscalPolicy)
   const unemploymentCost =
     gdpMillions *
     UNEMPLOYMENT_COST_PER_POINT_PCT_OF_GDP *
@@ -89,7 +104,8 @@ export function applyEconomyTick(
       dailyExpenses: 0,
     }
   }
-  const cashflow = getCashflow(input.stats, input.projects)
+  const fiscalPolicy = input.fiscalPolicy ?? NEUTRAL_FISCAL_POLICY
+  const cashflow = getCashflow(input.stats, input.projects, fiscalPolicy)
   const dailyRevenue = cashflow.annualRevenue / DAYS_PER_YEAR
   const dailyExpenses = cashflow.annualExpenses / DAYS_PER_YEAR
   const dailyBalance = dailyRevenue - dailyExpenses
@@ -99,7 +115,7 @@ export function applyEconomyTick(
   )
   if (treasury < TREASURY_FLOOR) treasury = TREASURY_FLOOR
 
-  let approval = driftApproval(input.approval, days)
+  let approval = driftApproval(input.approval, days, fiscalPolicy)
   if (treasury < TREASURY_PENALTY_THRESHOLD) {
     // Penalty scales with depth so a runaway deficit actually hurts.
     const depth = (TREASURY_PENALTY_THRESHOLD - treasury) / 100_000
@@ -107,13 +123,24 @@ export function applyEconomyTick(
     approval = clampApproval(approval - penalty)
   }
 
-  const stats = drift(input.stats, days)
+  const stats = drift(input.stats, days, fiscalPolicy)
 
   return { treasury, approval, stats, dailyRevenue, dailyExpenses }
 }
 
-function driftApproval(approval: number, days: number): number {
-  const delta = (APPROVAL_BASELINE - approval) * APPROVAL_DRIFT_PER_DAY * 0.01 * days
+function driftApproval(
+  approval: number,
+  days: number,
+  fiscalPolicy: FiscalPolicy
+): number {
+  // The budget stance shifts the baseline approval drifts toward: tax hikes
+  // pull it down, spending boosts pull it up. Clamp the shifted baseline to a
+  // sane band so the levers can't peg approval at an extreme on their own.
+  const baseline = Math.max(
+    10,
+    Math.min(70, APPROVAL_BASELINE + approvalBaselineShift(fiscalPolicy))
+  )
+  const delta = (baseline - approval) * APPROVAL_DRIFT_PER_DAY * 0.01 * days
   return clampApproval(approval + delta)
 }
 
@@ -121,7 +148,11 @@ function clampApproval(v: number): number {
   return Math.max(0, Math.min(100, v))
 }
 
-function drift(stats: CountryStats, days: number): CountryStats {
+function drift(
+  stats: CountryStats,
+  days: number,
+  fiscalPolicy: FiscalPolicy
+): CountryStats {
   const yearsFraction = clamp(days / DAYS_PER_YEAR, -50, 50)
   const economy = { ...stats.economy }
   const rawGdp = economy.gdpUsd * Math.pow(1 + 0.013, yearsFraction)
@@ -139,10 +170,17 @@ function drift(stats: CountryStats, days: number): CountryStats {
     0,
     20
   )
+  // Spending boosts pull the unemployment target down (stimulus), austerity and
+  // tax hikes push it up. Clamp the shifted target to a plausible band.
+  const unemploymentTarget = clamp(
+    7 + unemploymentTargetShift(fiscalPolicy),
+    3,
+    12
+  )
   economy.unemploymentPct = clamp(
     safeNumber(
       economy.unemploymentPct +
-        (7 - economy.unemploymentPct) * 0.04 * yearsFraction,
+        (unemploymentTarget - economy.unemploymentPct) * 0.04 * yearsFraction,
       economy.unemploymentPct
     ),
     2,

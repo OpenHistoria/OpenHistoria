@@ -14,6 +14,7 @@ import {
   GaugeIcon,
   LandmarkIcon,
   MegaphoneIcon,
+  PiggyBankIcon,
   ScaleIcon,
   TrendingDownIcon,
   TrendingUpIcon,
@@ -24,6 +25,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 
 import { ApprovalBreakdown } from "@/components/approval-breakdown"
+import { BudgetSheet } from "@/components/budget-sheet"
 import { CabinetSheet } from "@/components/cabinet-sheet"
 import { LobbyBar } from "@/components/lobby-bar"
 import { CountryFlag } from "@/components/country-flag"
@@ -69,8 +71,10 @@ export function CountryStatsPanel() {
   const { issueBond, mediaTour } = useGameActions()
   const { statsOpen, closeStats, statsPos, setStatsPos } = useHudState()
   const [cabinetOpen, setCabinetOpen] = useState(false)
+  const [budgetOpen, setBudgetOpen] = useState(false)
   const cashflow = useMemo(
-    () => (game ? getCashflow(game.stats, game.projects) : null),
+    () =>
+      game ? getCashflow(game.stats, game.projects, game.fiscalPolicy) : null,
     [game]
   )
   const nextEvent = useMemo(
@@ -236,12 +240,21 @@ export function CountryStatsPanel() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setBudgetOpen(true)}
+            title="Set tax and spending levers."
+          >
+            <PiggyBankIcon /> Budget
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setCabinetOpen(true)}
           >
             <UsersRoundIcon /> Cabinet
           </Button>
         </div>
       )}
+      <BudgetSheet open={budgetOpen} onOpenChange={setBudgetOpen} />
       <CabinetSheet open={cabinetOpen} onOpenChange={setCabinetOpen} />
       {game.gameOver && (
         <div className="flex items-center gap-2 border-t bg-muted/40 px-3 py-2 text-xs">

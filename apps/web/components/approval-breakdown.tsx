@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  approvalBaselineShift,
   evaluateReformAgenda,
   getCabinetEffects,
   getCashflow,
@@ -31,12 +32,21 @@ export function ApprovalBreakdown() {
     const out: Contribution[] = []
     const cabinet = getCabinetEffects(game.nation, game.cabinet)
 
-    // Drift toward baseline 35%.
-    const driftPerDay = -(game.approval - 35) * 0.0008
+    // Drift toward baseline (35%, shifted by the fiscal stance and clamped to
+    // [10, 70] to mirror the engine).
+    const baseline = Math.max(
+      10,
+      Math.min(70, 35 + approvalBaselineShift(game.fiscalPolicy))
+    )
+    const driftPerDay = -(game.approval - baseline) * 0.0008
+    const stanceNote =
+      baseline === 35
+        ? ""
+        : ` (budget ${baseline > 35 ? "+" : "−"}${Math.abs(baseline - 35).toFixed(0)}pp)`
     out.push({
       label: "Baseline drift",
       annual: driftPerDay * 365,
-      detail: `Approval drifts toward 35% (current ${game.approval.toFixed(0)}%)`,
+      detail: `Approval drifts toward ${baseline.toFixed(0)}%${stanceNote}`,
     })
 
     // Cabinet daily lift.
@@ -61,7 +71,7 @@ export function ApprovalBreakdown() {
     }
 
     // Unemployment headwind via cashflow-shaped indirect signal.
-    const cashflow = getCashflow(game.stats, game.projects)
+    const cashflow = getCashflow(game.stats, game.projects, game.fiscalPolicy)
     if (cashflow.annualBalance < 0) {
       out.push({
         label: "Project burn",

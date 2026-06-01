@@ -3,7 +3,16 @@ import {
   CountryStatsProvider,
   type CountryStats,
 } from "./country-stats"
-import { applyEconomyTick, sanitizeStats } from "./economy"
+import { applyEconomyTick, getCashflow, sanitizeStats } from "./economy"
+import {
+  fiscalPolicyEquals,
+  NEUTRAL_FISCAL_POLICY,
+  sanitizeFiscalPolicy,
+  spendingLeverLabel,
+  taxLeverLabel,
+  type FiscalLever,
+  type FiscalPolicy,
+} from "./fiscal"
 import {
   electionEventId,
   getDueEvent,
@@ -239,6 +248,11 @@ export interface GameSnapshot {
    * Optional so older saves still load; re-seeded on read when absent.
    */
   worldElections?: WorldElections
+  /**
+   * Active budget levers (tax stance + public spending). Optional so older
+   * saves still load; defaulted to neutral ("current policy") on read.
+   */
+  fiscalPolicy?: FiscalPolicy
 }
 
 export type BriefingKind =
@@ -283,6 +297,7 @@ interface GameFields {
   cabinet: CabinetAppointments
   lobbies: Record<LobbyId, number>
   worldElections: WorldElections
+  fiscalPolicy: FiscalPolicy
 }
 
 const countryStatsProvider = new CountryStatsProvider()
@@ -423,6 +438,7 @@ export class Game {
   readonly cabinet: CabinetAppointments
   readonly lobbies: Record<LobbyId, number>
   readonly worldElections: WorldElections
+  readonly fiscalPolicy: FiscalPolicy
 
   constructor(init: GameFields) {
     this.nation = init.nation
@@ -449,6 +465,7 @@ export class Game {
     this.cabinet = init.cabinet
     this.lobbies = init.lobbies
     this.worldElections = init.worldElections
+    this.fiscalPolicy = init.fiscalPolicy
   }
 
   static createNew(opts: NewGameOptions = {}): Game {
@@ -502,6 +519,7 @@ export class Game {
       cabinet: {},
       lobbies: defaultLobbies(),
       worldElections: initWorldElections(nation, start),
+      fiscalPolicy: { ...NEUTRAL_FISCAL_POLICY },
     })
   }
 
@@ -531,6 +549,7 @@ export class Game {
       cabinet: this.cabinet,
       lobbies: this.lobbies,
       worldElections: this.worldElections,
+      fiscalPolicy: this.fiscalPolicy,
       ...overrides,
     })
   }
@@ -715,6 +734,45 @@ export class Game {
       detail: "+1.5 approval · −€80M comms budget",
     }))
     return this.with({ treasury: this.treasury - cost, approval, briefing })
+  }
+
+  /**
+   * Set the budget levers. Accepts a partial update (e.g. just `{ tax: 1 }`);
+   * unspecified levers keep their current value. Both levers are clamped to
+   * [−2, +2]. The change lands immediately as an interest-group reaction and a
+   * briefing line; the revenue/expense/approval/unemployment effects then play
+   * out through the ongoing economy tick. No-op if nothing actually changed.
+   */
+  setFiscalPolicy(update: Partial<FiscalPolicy>): Game {
+    if (this.gameOver) return this
+    const next = sanitizeFiscalPolicy({ ...this.fiscalPolicy, ...update })
+    if (fiscalPolicyEquals(next, this.fiscalPolicy)) return this
+
+    const dTax = next.tax - this.fiscalPolicy.tax
+    const dSpend = next.spending - this.fiscalPolicy.spending
+
+    // Interest groups react the instant a budget is announced. Raising taxes
+    // and growing spending please labour and the public sector while worrying
+    // industry about the deficit; cuts and austerity flip the signs.
+    const lobbies = { ...this.lobbies }
+    const bump = (id: LobbyId, by: number) => {
+      lobbies[id] = Math.max(0, Math.min(100, lobbies[id] + by))
+    }
+    bump("public_sector", dTax * 3 + dSpend * 4)
+    bump("unions", dTax * 1.5 + dSpend * 4)
+    bump("industry", dTax * -4 - dSpend * 2)
+
+    const parts: string[] = []
+    if (dTax !== 0) parts.push(`Tax → ${taxLeverLabel(next.tax)}`)
+    if (dSpend !== 0) parts.push(`Spending → ${spendingLeverLabel(next.spending)}`)
+    const cashflow = getCashflow(this.stats, this.projects, next)
+    const briefing = pushTo(this.briefing, makeBriefing(this.date, {
+      kind: "treasury",
+      title: "Budget revised",
+      detail: `${parts.join(" · ")} · projected balance €${Math.round(cashflow.monthlyBalance).toLocaleString()}M/mo`,
+    }))
+
+    return this.with({ fiscalPolicy: next, lobbies, briefing })
   }
 
   getRelation(target: string): RelationState {
@@ -948,6 +1006,7 @@ export class Game {
         approval: this.approval,
         stats: this.stats,
         projects: this.projects,
+        fiscalPolicy: this.fiscalPolicy,
       },
       days
     )
@@ -1360,6 +1419,7 @@ export class Game {
       cabinet: { ...this.cabinet },
       lobbies: { ...this.lobbies },
       worldElections: structuredClone(this.worldElections),
+      fiscalPolicy: { ...this.fiscalPolicy },
     }
   }
 
@@ -1396,6 +1456,7 @@ export class Game {
         worldElections:
           s.worldElections ??
           initWorldElections(s.nation, new Date(s.startedAt)),
+        fiscalPolicy: sanitizeFiscalPolicy(s.fiscalPolicy),
       })
     }
     return migrateLegacy(snapshot)
@@ -1504,6 +1565,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       cabinet: {},
       lobbies: defaultLobbies(),
       worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
+      fiscalPolicy: { ...NEUTRAL_FISCAL_POLICY },
     })
   }
   if ((snapshot as LegacyV3Snapshot).version === 3) {
@@ -1534,6 +1596,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       cabinet: {},
       lobbies: defaultLobbies(),
       worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
+      fiscalPolicy: { ...NEUTRAL_FISCAL_POLICY },
     })
   }
   if ((snapshot as LegacyV2Snapshot).version === 2) {
@@ -1564,6 +1627,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
       cabinet: {},
       lobbies: defaultLobbies(),
       worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
+      fiscalPolicy: { ...NEUTRAL_FISCAL_POLICY },
     })
   }
   const s = snapshot as LegacyV1Snapshot
@@ -1605,6 +1669,7 @@ function migrateLegacy(snapshot: AnySnapshot): Game {
     cabinet: {},
     lobbies: defaultLobbies(),
     worldElections: initWorldElections(s.nation, new Date(s.startedAt)),
+    fiscalPolicy: { ...NEUTRAL_FISCAL_POLICY },
   })
 }
 

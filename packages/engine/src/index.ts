@@ -118,6 +118,23 @@ export type {
 } from "./events"
 export { applyEconomyTick, getCashflow, sanitizeStats } from "./economy"
 export type { CashflowSummary } from "./economy"
+export {
+  approvalBaselineShift,
+  FISCAL_LEVERS,
+  NEUTRAL_FISCAL_POLICY,
+  sanitizeFiscalPolicy,
+  spendingExpenseMultiplier,
+  SPENDING_LEVER_OPTIONS,
+  spendingLeverLabel,
+  TAX_LEVER_OPTIONS,
+  taxLeverLabel,
+  taxRevenueMultiplier,
+} from "./fiscal"
+export type {
+  FiscalLever,
+  FiscalLeverOption,
+  FiscalPolicy,
+} from "./fiscal"
 export { maybeGenerateProceduralEvent } from "./procedural-events"
 export {
   getClock,

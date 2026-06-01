@@ -264,6 +264,46 @@ describe("Game.mediaTour", () => {
   })
 })
 
+describe("Game.setFiscalPolicy", () => {
+  it("defaults to neutral and is round-tripped through a snapshot", () => {
+    const game = freshGame()
+    expect(game.fiscalPolicy).toEqual({ tax: 0, spending: 0 })
+    const next = game.setFiscalPolicy({ tax: 1, spending: -1 })
+    expect(next.fiscalPolicy).toEqual({ tax: 1, spending: -1 })
+    const round = Game.fromSnapshot(next.toSnapshot())
+    expect(round.fiscalPolicy).toEqual({ tax: 1, spending: -1 })
+  })
+
+  it("clamps levers, merges partial updates, and logs a briefing", () => {
+    const game = freshGame()
+    const next = game.setFiscalPolicy({ tax: 9 } as unknown as { tax: 2 })
+    expect(next.fiscalPolicy).toEqual({ tax: 2, spending: 0 })
+    expect(next.briefing[0]?.kind).toBe("treasury")
+    expect(next.briefing[0]?.title).toBe("Budget revised")
+  })
+
+  it("is a no-op when nothing changes", () => {
+    const game = freshGame()
+    expect(game.setFiscalPolicy({ tax: 0, spending: 0 })).toBe(game)
+  })
+
+  it("shifts interest-group satisfaction immediately", () => {
+    const game = freshGame()
+    const next = game.setFiscalPolicy({ tax: 2, spending: 2 })
+    // Tax hikes + spending boosts please the public sector, worry industry.
+    expect(next.lobbies.public_sector).toBeGreaterThan(game.lobbies.public_sector)
+    expect(next.lobbies.industry).toBeLessThan(game.lobbies.industry)
+  })
+
+  it("loads pre-fiscal saves as neutral policy", () => {
+    const game = freshGame()
+    const snapshot = game.toSnapshot()
+    delete (snapshot as { fiscalPolicy?: unknown }).fiscalPolicy
+    const round = Game.fromSnapshot(snapshot)
+    expect(round.fiscalPolicy).toEqual({ tax: 0, spending: 0 })
+  })
+})
+
 describe("Game diplomacy", () => {
   it("getRelation returns a default state when no record exists", () => {
     const game = freshGame()
