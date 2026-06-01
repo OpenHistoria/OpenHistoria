@@ -3,6 +3,21 @@
 Notable changes are grouped by round. Each round corresponds to a single
 `feat:` commit on `main`; the list is curated, not exhaustive.
 
+## Round 16
+- **Budget & fiscal policy.** Two new player-controlled levers — a tax stance
+  and a public-spending level, each from −2 (deep cuts / austerity) to +2
+  (big hike / major boost). Taxes scale treasury revenue against popularity;
+  spending scales the deficit against jobs and approval. Both feed the
+  economy tick (`getCashflow`, `applyEconomyTick`), shift the approval
+  baseline, pull the unemployment target, and move interest-group
+  satisfaction — instantly via `Game.setFiscalPolicy` and as a sustained
+  `computeLobbyBaselines` term so the stance holds rather than decaying to
+  neutral.
+- New **Budget** sheet in the country-stats panel previews each lever's effect
+  on the projected monthly balance before you commit. `fiscalPolicy` is part
+  of the snapshot (optional on disk, defaulted to neutral on read, so older
+  saves load unchanged).
+
 ## Round 15
 - **Play any country.** A new-game flow lets you pick any of ~190 nations
   and take charge of its current leader, starting *today*. France keeps its

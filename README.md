@@ -44,7 +44,9 @@ into the mandate.
    severity procedural events are auto-handled by the cabinet (with a default
    choice) and logged in the briefing.
 4. **Issue bonds** to refill the treasury — the cost rises with debt/GDP and
-   bonds are refused outright past 160% debt/GDP.
+   bonds are refused outright past 160% debt/GDP. Or set the **budget**: a tax
+   lever (revenue vs. popularity) and a spending lever (deficit vs. jobs +
+   approval), each rippling through the economy and the interest-group lobbies.
 5. **Manage diplomacy**: propose alliances, send SMS / tweets / calls /
    letters to other heads of state. The foreign minister speeds drift toward
    each nation's baseline opinion. Foreign nations hold their own elections

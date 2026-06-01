@@ -12,6 +12,7 @@ import {
   saveGame,
   saveToSlot,
   type DiplomaticMessageArgs,
+  type FiscalPolicy,
   type GameSpeed,
   type NewGameOptions,
   type Project,
@@ -44,6 +45,7 @@ interface GameActions {
   cancelProject: (id: string) => void
   issueBond: (amountMillions: number) => void
   mediaTour: () => void
+  setFiscalPolicy: (update: Partial<FiscalPolicy>) => void
   proposeAlliance: (target: string) => void
   breakAlliance: (target: string) => void
   sendDiplomaticMessage: (args: DiplomaticMessageArgs) => void
@@ -85,6 +87,7 @@ const noopActions: GameActions = {
   cancelProject: () => {},
   issueBond: () => {},
   mediaTour: () => {},
+  setFiscalPolicy: () => {},
   proposeAlliance: () => {},
   breakAlliance: () => {},
   sendDiplomaticMessage: () => {},
@@ -255,6 +258,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return next
     })
   }, [persist])
+
+  const setFiscalPolicy = useCallback(
+    (update: Partial<FiscalPolicy>) => {
+      setGame((current) => {
+        if (!current) return current
+        const next = current.setFiscalPolicy(update)
+        persist(next)
+        return next
+      })
+    },
+    [persist]
+  )
 
   const proposeAlliance = useCallback(
     (target: string) => {
@@ -531,6 +546,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         cancelProject,
         issueBond,
         mediaTour,
+        setFiscalPolicy,
         proposeAlliance,
         breakAlliance,
         sendDiplomaticMessage,
@@ -560,6 +576,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       cancelProject,
       issueBond,
       mediaTour,
+      setFiscalPolicy,
       proposeAlliance,
       breakAlliance,
       sendDiplomaticMessage,
