@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { Result } from "better-result"
 import maplibregl from "maplibre-gl"
 import { Protocol } from "pmtiles"
 import "maplibre-gl/dist/maplibre-gl.css"
@@ -25,6 +26,16 @@ const IDLE_SPIN_MAX_ZOOM = 4
 const REGION_HOVER_MIN_ZOOM = 5
 
 const PROJECTION_STORAGE_KEY = "openhistoria:projection"
+
+// localStorage throws in Safari private mode and when storage is blocked;
+// the projection preference is best-effort, so swallow those failures.
+const readStoredProjection = () =>
+  Result.try(() =>
+    window.localStorage.getItem(PROJECTION_STORAGE_KEY),
+  ).unwrapOr(null)
+
+const storeProjection = (mode: ProjectionMode) =>
+  Result.try(() => window.localStorage.setItem(PROJECTION_STORAGE_KEY, mode))
 
 type ProjectionMode = "globe" | "mercator"
 
@@ -127,7 +138,7 @@ export function WorldMap() {
 
     map.on("load", () => {
       setLoaded(true)
-      const stored = window.localStorage.getItem(PROJECTION_STORAGE_KEY)
+      const stored = readStoredProjection()
       if (stored === "mercator") {
         map.setProjection({ type: "mercator" })
         setProjection("mercator")
@@ -143,7 +154,7 @@ export function WorldMap() {
 
   const switchProjection = (mode: ProjectionMode) => {
     setProjection(mode)
-    window.localStorage.setItem(PROJECTION_STORAGE_KEY, mode)
+    storeProjection(mode)
     mapRef.current?.setProjection({ type: mode })
   }
 
