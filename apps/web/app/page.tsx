@@ -1,19 +1,14 @@
-import { Button } from "@workspace/ui/components/button"
+import { WorldMap } from "@/components/map/world-map"
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="text-muted-foreground font-mono text-xs">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
+    <main className="h-svh w-svw overflow-hidden">
+      <WorldMap />
+      <div className="pointer-events-none absolute top-4 left-4 z-10 select-none">
+        <h1 className="rounded-md bg-black/60 px-3 py-1.5 text-sm font-semibold tracking-[0.2em] text-white uppercase backdrop-blur-sm">
+          Open Historia
+        </h1>
       </div>
-    </div>
+    </main>
   )
 }

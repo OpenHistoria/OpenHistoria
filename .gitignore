@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# GADM-derived map data (GADM forbids redistribution; run `bun run build:map-data`)
+apps/web/public/map/regions.pmtiles
