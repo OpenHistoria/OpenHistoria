@@ -6,6 +6,7 @@ import maplibregl from "maplibre-gl"
 import { Protocol } from "pmtiles"
 import "maplibre-gl/dist/maplibre-gl.css"
 
+import { useI18n } from "@/hooks/use-i18n"
 import { mapStyle } from "@/lib/map-style"
 
 let protocolRegistered = false
@@ -31,7 +32,7 @@ const PROJECTION_STORAGE_KEY = "openhistoria:projection"
 // the projection preference is best-effort, so swallow those failures.
 const readStoredProjection = () =>
   Result.try(() =>
-    window.localStorage.getItem(PROJECTION_STORAGE_KEY),
+    window.localStorage.getItem(PROJECTION_STORAGE_KEY)
   ).unwrapOr(null)
 
 const storeProjection = (mode: ProjectionMode) =>
@@ -46,6 +47,7 @@ type HoverTarget = {
 }
 
 export function WorldMap() {
+  const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -80,7 +82,7 @@ export function WorldMap() {
 
     map.addControl(
       new maplibregl.NavigationControl({ showCompass: false }),
-      "bottom-right",
+      "bottom-right"
     )
 
     // Idle spin: slow drift until the user interacts.
@@ -112,6 +114,9 @@ export function WorldMap() {
     map.on("mousemove", (e) => {
       const useRegions = map.getZoom() >= REGION_HOVER_MIN_ZOOM
       const layer = useRegions ? "region-fill" : "country-fill"
+      // mousemove can fire before the style has loaded; querying a layer
+      // that does not exist yet logs an error.
+      if (!map.getLayer(layer)) return
       const feature = map.queryRenderedFeatures(e.point, {
         layers: [layer],
       })[0]
@@ -131,7 +136,7 @@ export function WorldMap() {
         },
         useRegions
           ? `${props.name as string}, ${props.country as string}`
-          : ((props.name as string) ?? null),
+          : ((props.name as string) ?? null)
       )
     })
     map.on("mouseout", () => setHover(null, null))
@@ -167,8 +172,8 @@ export function WorldMap() {
       <div className="absolute top-4 right-4 z-10 flex overflow-hidden rounded-md bg-black/60 text-xs font-medium text-white backdrop-blur-sm">
         {(
           [
-            ["globe", "Globe"],
-            ["mercator", "Flat"],
+            ["globe", t.map.globe],
+            ["mercator", t.map.flat],
           ] as const
         ).map(([mode, label]) => (
           <button

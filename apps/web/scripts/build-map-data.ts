@@ -80,13 +80,13 @@ async function buildWorld(): Promise<void> {
 
   // Country label points from Natural Earth's hand-placed LABEL_X/LABEL_Y.
   const countries: FeatureCollection = JSON.parse(
-    fs.readFileSync(countriesFile, "utf8"),
+    fs.readFileSync(countriesFile, "utf8")
   )
   const labels: FeatureCollection = {
     type: "FeatureCollection",
     features: countries.features
       .filter(
-        (f) => f.properties.LABEL_X != null && f.properties.LABEL_Y != null,
+        (f) => f.properties.LABEL_X != null && f.properties.LABEL_Y != null
       )
       .map((f) => ({
         type: "Feature",
@@ -121,7 +121,7 @@ async function buildWorld(): Promise<void> {
 
   // Slim populated places.
   const places: FeatureCollection = JSON.parse(
-    fs.readFileSync(placesFile, "utf8"),
+    fs.readFileSync(placesFile, "utf8")
   )
   for (const f of places.features) {
     const p = f.properties
@@ -138,10 +138,12 @@ async function buildWorld(): Promise<void> {
 
   console.log("running tippecanoe (world)...")
   run("tippecanoe", [
-    "-o", outFile,
+    "-o",
+    outFile,
     "--force",
     // Vector data tops out at z8; MapLibre overzooms beyond that.
-    "-Z0", "-z8",
+    "-Z0",
+    "-z8",
     // Keep every point at every zoom: tippecanoe's default drop rate would
     // silently remove most country labels and city dots at low zooms.
     "-r1",
@@ -149,10 +151,14 @@ async function buildWorld(): Promise<void> {
     "--coalesce-densest-as-needed",
     "--no-tile-size-limit",
     "--no-feature-limit",
-    "-L", `countries:${countriesSlimFile}`,
-    "-L", `boundaries:${boundariesFile}`,
-    "-L", `country-labels:${labelsFile}`,
-    "-L", `places:${placesSlimFile}`,
+    "-L",
+    `countries:${countriesSlimFile}`,
+    "-L",
+    `boundaries:${boundariesFile}`,
+    "-L",
+    `country-labels:${labelsFile}`,
+    "-L",
+    `places:${placesSlimFile}`,
   ])
   reportDone(outFile)
 }
@@ -172,10 +178,14 @@ function buildRegions(): void {
     // -C - resumes a partial file, so rerunning after an interrupted
     // download continues instead of starting over.
     run("curl", [
-      "-L", "-C", "-",
-      "--retry", "5",
+      "-L",
+      "-C",
+      "-",
+      "--retry",
+      "5",
       "--retry-all-errors",
-      "-o", zip,
+      "-o",
+      zip,
       GADM_URL,
     ])
     try {
@@ -183,7 +193,7 @@ function buildRegions(): void {
     } catch {
       fs.rmSync(zip)
       throw new Error(
-        "GADM zip is corrupt or truncated; deleted it. Rerun to redownload.",
+        "GADM zip is corrupt or truncated; deleted it. Rerun to redownload."
       )
     }
     console.log("extracting GADM geopackage...")
@@ -197,39 +207,48 @@ function buildRegions(): void {
   console.log("extracting level-1 subdivisions...")
   const regionsFile = path.join(workDir, "regions.fgb")
   run("ogr2ogr", [
-    "-f", "FlatGeobuf",
+    "-f",
+    "FlatGeobuf",
     regionsFile,
     gpkg,
-    "-dialect", "sqlite",
+    "-dialect",
+    "sqlite",
     "-sql",
     "SELECT GID_1 AS gid, NAME_1 AS name, COUNTRY AS country, ENGTYPE_1 AS type, geom FROM ADM_1",
-    "-nlt", "MULTIPOLYGON",
+    "-nlt",
+    "MULTIPOLYGON",
   ])
 
   console.log("computing region label points...")
   const regionLabelsFile = path.join(workDir, "region-labels.geojson")
   run("ogr2ogr", [
-    "-f", "GeoJSON",
+    "-f",
+    "GeoJSON",
     regionLabelsFile,
     gpkg,
-    "-dialect", "sqlite",
+    "-dialect",
+    "sqlite",
     "-sql",
     "SELECT GID_1 AS gid, NAME_1 AS name, COUNTRY AS country, ST_PointOnSurface(geom) AS geom FROM ADM_1",
   ])
 
   console.log("running tippecanoe (regions)...")
   run("tippecanoe", [
-    "-o", outFile,
+    "-o",
+    outFile,
     "--force",
     // Regions only matter once zoomed in; z10 keeps borders crisp deep into
     // city-level zooms via overzooming.
-    "-Z4", "-z10",
+    "-Z4",
+    "-z10",
     "-r1",
     "--detect-shared-borders",
     "--no-tile-size-limit",
     "--no-feature-limit",
-    "-L", `regions:${regionsFile}`,
-    "-L", `region-labels:${regionLabelsFile}`,
+    "-L",
+    `regions:${regionsFile}`,
+    "-L",
+    `region-labels:${regionLabelsFile}`,
   ])
   reportDone(outFile)
 }

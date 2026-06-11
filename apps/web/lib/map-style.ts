@@ -15,9 +15,20 @@ export const mapStyle: StyleSpecification = {
     "sky-color": "#000005",
     "fog-color": "#000005",
     "horizon-color": "#1d4a8f",
-    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 6.5, 0],
+    "atmosphere-blend": [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      0,
+      1,
+      5,
+      1,
+      6.5,
+      0,
+    ],
   },
-  glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+  glyphs:
+    "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
   sources: {
     satellite: {
       type: "raster",
@@ -144,7 +155,17 @@ export const mapStyle: StyleSpecification = {
       layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": "#ffffff",
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.45, 4, 0.65, 8, 0.8],
+        "line-opacity": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          0,
+          0.45,
+          4,
+          0.65,
+          8,
+          0.8,
+        ],
         "line-width": [
           "interpolate",
           ["exponential", 1.4],
@@ -253,11 +274,7 @@ export const mapStyle: StyleSpecification = {
       source: "world",
       "source-layer": "country-labels",
       maxzoom: 9,
-      filter: [
-        "<=",
-        ["get", "scalerank"],
-        ["+", ["*", ["zoom"], 2.5], 0.5],
-      ],
+      filter: ["<=", ["get", "scalerank"], ["+", ["*", ["zoom"], 2.5], 0.5]],
       layout: {
         "text-field": ["get", "name"],
         "text-font": ["Noto Sans Medium"],
@@ -279,15 +296,7 @@ export const mapStyle: StyleSpecification = {
         "text-color": "#ffffff",
         "text-halo-color": "rgba(0, 0, 0, 0.8)",
         "text-halo-width": 1.6,
-        "text-opacity": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          7,
-          1,
-          9,
-          0,
-        ],
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 7, 1, 9, 0],
       },
     },
   ],
