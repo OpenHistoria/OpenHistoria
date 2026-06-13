@@ -101,16 +101,19 @@ jobs:
             --skip-git-repo-check \
             "$PROMPT"
 
-      - name: Locate captured screenshots
+      - name: Collect screenshots into SHOTS_DIR
+        # The Playwright MCP writes browser_take_screenshot files (relative
+        # filenames) into the working dir, not --output-dir. Gather those
+        # top-level images (the repo's own PNGs live nested under apps/).
         if: always()
         run: |
-          echo "== SHOTS_DIR ($SHOTS_DIR) =="; ls -la "$SHOTS_DIR" || true
-          echo "== recent *.png anywhere (excluding repo assets/deps) =="
-          find "$GITHUB_WORKSPACE" "$HOME" -name '*.png' -newermt '-25 min' 2>/dev/null \
-            | grep -vE 'node_modules|/\.git/|\.next|apps/web/public' | head -50 || true
-          echo "== recent *.jpeg/*.jpg anywhere =="
-          find "$GITHUB_WORKSPACE" "$HOME" \( -name '*.jpg' -o -name '*.jpeg' \) -newermt '-25 min' 2>/dev/null \
-            | grep -vE 'node_modules|/\.git/|\.next|apps/web/public' | head -50 || true
+          shopt -s nullglob
+          moved=0
+          for f in "$GITHUB_WORKSPACE"/*.png "$GITHUB_WORKSPACE"/*.jpg "$GITHUB_WORKSPACE"/*.jpeg; do
+            mv "$f" "$SHOTS_DIR"/ && moved=$((moved + 1))
+          done
+          echo "Moved $moved screenshot(s) into $SHOTS_DIR"
+          ls -la "$SHOTS_DIR"/*.png "$SHOTS_DIR"/*.jpg "$SHOTS_DIR"/*.jpeg 2>/dev/null || echo "(no images)"
 
       - name: Post screenshots to Discord
         if: always()
