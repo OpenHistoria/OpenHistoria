@@ -15,6 +15,7 @@ import { Result, TaggedError } from "better-result"
 
 const KEY_STORAGE_KEY = "openhistoria:openrouter-key"
 const VERIFIER_STORAGE_KEY = "openhistoria:openrouter-verifier"
+const PREFER_FREE_ROTATION_KEY = "openhistoria:prefer-free-rotation"
 
 /** Fired on window whenever the stored key changes in this tab. */
 export const OPENROUTER_KEY_CHANGED_EVENT =
@@ -159,6 +160,56 @@ export const storeOpenRouterKey = (key: string) => {
 export const clearOpenRouterKey = () => {
   Result.try(() => window.localStorage.removeItem(KEY_STORAGE_KEY))
   window.dispatchEvent(new Event(OPENROUTER_KEY_CHANGED_EVENT))
+}
+
+/**
+ * Whether new games should default to the free-model rotation. Set when a key
+ * is injected directly (the CI screenshot agent), so an automated run plays on
+ * free models without touching the model picker.
+ */
+export const getPreferFreeRotation = (): boolean =>
+  Result.try(
+    () => window.localStorage.getItem(PREFER_FREE_ROTATION_KEY) === "1"
+  ).unwrapOr(false)
+
+export const setPreferFreeRotation = (on: boolean) => {
+  Result.try(() =>
+    on
+      ? window.localStorage.setItem(PREFER_FREE_ROTATION_KEY, "1")
+      : window.localStorage.removeItem(PREFER_FREE_ROTATION_KEY)
+  )
+}
+
+/**
+ * Direct-key entry point, bypassing the PKCE OAuth flow: lets a headless
+ * session (the CI screenshot agent) hand the app a key through the URL. Reads
+ * `or_key` from the hash (preferred, not sent to servers) or the query string,
+ * stores it, switches new games to the free-model rotation, and scrubs the key
+ * from the address bar so it never lands in a screenshot or browser history.
+ * Returns true when a key was ingested. No-op on the server or when absent.
+ */
+export function applyOpenRouterKeyFromUrl(): boolean {
+  if (typeof window === "undefined") return false
+
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+  const query = new URLSearchParams(window.location.search)
+  const key = hash.get("or_key") ?? query.get("or_key")
+  if (!key) return false
+
+  storeOpenRouterKey(key)
+  setPreferFreeRotation(true)
+
+  // Scrub only the key, preserving any other params (e.g. the map #hash).
+  hash.delete("or_key")
+  query.delete("or_key")
+  const search = query.toString()
+  const rest = hash.toString()
+  const cleaned =
+    window.location.pathname +
+    (search ? `?${search}` : "") +
+    (rest ? `#${rest}` : "")
+  Result.try(() => window.history.replaceState(null, "", cleaned))
+  return true
 }
 
 export interface OpenRouterKeyInfo {

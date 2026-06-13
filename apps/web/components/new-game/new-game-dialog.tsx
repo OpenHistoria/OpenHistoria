@@ -4,7 +4,12 @@ import { useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { PlayIcon } from "@hugeicons/core-free-icons"
 
-import { DEFAULT_MODEL, type CountryListEntry, type Game } from "@workspace/engine"
+import {
+  DEFAULT_MODEL,
+  ROTATE_FREE_MODELS,
+  type CountryListEntry,
+  type Game,
+} from "@workspace/engine"
 import {
   Alert,
   AlertDescription,
@@ -28,6 +33,7 @@ import { useI18n } from "@/hooks/use-i18n"
 import { localizedCountryName } from "@/lib/country-names"
 import { engine } from "@/lib/engine"
 import { localeLanguageName } from "@/lib/i18n"
+import { getPreferFreeRotation } from "@/lib/openrouter"
 
 interface NewGameDialogProps {
   open: boolean
@@ -51,7 +57,10 @@ export function NewGameDialog({
   const [step, setStep] = useState<Step>("country")
   const [country, setCountry] = useState<CountryListEntry | null>(null)
   const [year, setYear] = useState(engine.maxYear)
-  const [model, setModel] = useState(DEFAULT_MODEL)
+  // A directly-injected key (CI agent) opts into the free-model rotation.
+  const [model, setModel] = useState<string>(() =>
+    getPreferFreeRotation() ? ROTATE_FREE_MODELS : DEFAULT_MODEL
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

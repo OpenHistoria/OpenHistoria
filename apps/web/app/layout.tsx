@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import "@workspace/ui/globals.css"
+import { CiKeyBootstrap } from "@/components/ci-key-bootstrap"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -35,6 +36,7 @@ export default function RootLayout({
       )}
     >
       <body>
+        <CiKeyBootstrap />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
