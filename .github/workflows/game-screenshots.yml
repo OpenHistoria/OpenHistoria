@@ -53,8 +53,9 @@ jobs:
           [ "$missing" = "0" ]
 
       - name: Install Codex CLI
-        # Pinned to match the CLI that produced CODEX_AUTH_JSON.
-        run: npm install -g @openai/[email protected]
+        # npm "latest" is 0.139.0, matching the CLI that produced
+        # CODEX_AUTH_JSON. (An explicit @version spec trips an npm parse bug.)
+        run: npm install -g @openai/codex
 
       - name: Authenticate Codex with the subscription login
         run: |
