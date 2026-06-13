@@ -1,0 +1,9 @@
+node_modules
+.next
+.turbo
+.git
+
+# GADM subdivisions: license-restricted (no redistribution) and >100MB, so
+# they are not deployed. The regions layer is disabled in production via
+# NEXT_PUBLIC_MAP_REGIONS_URL="" (see apps/web/lib/map-style.ts).
+apps/web/public/map/regions.pmtiles
