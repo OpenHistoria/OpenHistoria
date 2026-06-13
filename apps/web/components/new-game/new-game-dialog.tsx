@@ -22,6 +22,7 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { CountryFlag } from "@/components/country-flag"
 import { CountryPicker } from "@/components/country-picker"
 import { useI18n } from "@/hooks/use-i18n"
+import { localizedCountryName } from "@/lib/country-names"
 import { engine } from "@/lib/engine"
 
 interface NewGameDialogProps {
@@ -40,7 +41,7 @@ export function NewGameDialog({
   onOpenChange,
   onCreated,
 }: NewGameDialogProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [country, setCountry] = useState<CountryListEntry | null>(null)
   const [year, setYear] = useState(engine.maxYear)
   const [busy, setBusy] = useState(false)
@@ -85,10 +86,12 @@ export function NewGameDialog({
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
               <CountryFlag
                 code={country.code}
-                title={country.name}
+                title={localizedCountryName(country.code, locale, country.name)}
                 className="h-4 w-auto rounded-[1px] ring-1 ring-black/15"
               />
-              <span className="font-medium">{country.name}</span>
+              <span className="font-medium">
+                {localizedCountryName(country.code, locale, country.name)}
+              </span>
               <span className="text-xs text-muted-foreground">
                 {t.newGame.selectedLabel}
               </span>

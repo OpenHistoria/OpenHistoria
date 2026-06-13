@@ -9,8 +9,7 @@ import { cn } from "@workspace/ui/lib/utils"
 
 import { CountryFlag } from "@/components/country-flag"
 import { useI18n } from "@/hooks/use-i18n"
-
-const SORTED = [...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name))
+import { localizedCountryName } from "@/lib/country-names"
 
 /** Searchable, flag-annotated country list for the new-game flow. */
 export function CountryPicker({
@@ -20,16 +19,30 @@ export function CountryPicker({
   selected: string | null
   onSelect: (entry: CountryListEntry) => void
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [query, setQuery] = useState("")
+
+  // Display and sort by the localized name; the entry passed to onSelect keeps
+  // the canonical English roster name the engine stores.
+  const entries = useMemo(
+    () =>
+      WORLD_COUNTRIES.map((c) => ({
+        ...c,
+        label: localizedCountryName(c.code, locale, c.name),
+      })).sort((a, b) => a.label.localeCompare(b.label, locale)),
+    [locale]
+  )
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return SORTED
-    return SORTED.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q
+    if (!q) return entries
+    return entries.filter(
+      (c) =>
+        c.label.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase() === q
     )
-  }, [query])
+  }, [query, entries])
 
   return (
     <div className="flex flex-col gap-2">
@@ -61,7 +74,7 @@ export function CountryPicker({
                 <li key={c.code}>
                   <button
                     type="button"
-                    onClick={() => onSelect(c)}
+                    onClick={() => onSelect({ code: c.code, name: c.name })}
                     aria-pressed={isSelected}
                     className={cn(
                       "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors",
@@ -72,10 +85,10 @@ export function CountryPicker({
                   >
                     <CountryFlag
                       code={c.code}
-                      title={c.name}
+                      title={c.label}
                       className="h-3.5 w-auto rounded-[1px] ring-1 ring-black/15"
                     />
-                    <span className="flex-1 truncate">{c.name}</span>
+                    <span className="flex-1 truncate">{c.label}</span>
                     <span className="text-[10px] text-muted-foreground tabular-nums">
                       {c.code}
                     </span>

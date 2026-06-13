@@ -23,7 +23,9 @@ const NE_BASE =
 const NE_SOURCES = {
   countries: `${NE_BASE}/ne_10m_admin_0_countries.geojson`,
   boundaries: `${NE_BASE}/ne_10m_admin_0_boundary_lines_land.geojson`,
-  places: `${NE_BASE}/ne_10m_populated_places_simple.geojson`,
+  // Full (not _simple) populated places: it carries the localized NAME_EN /
+  // NAME_FR / ... columns the map uses to render city labels per locale.
+  places: `${NE_BASE}/ne_10m_populated_places.geojson`,
 }
 const GADM_URL = "https://geodata.ucdavis.edu/gadm/gadm4.1/gadm_410-levels.zip"
 
@@ -123,14 +125,19 @@ async function buildWorld(): Promise<void> {
   const places: FeatureCollection = JSON.parse(
     fs.readFileSync(placesFile, "utf8")
   )
+  // The full places dataset uses uppercase property names and ships a
+  // localized name per language (NAME_EN, NAME_FR, ...); carry the ones the
+  // app's locales need so city labels can be rendered per locale.
   for (const f of places.features) {
     const p = f.properties
     f.properties = {
-      name: p.name,
-      scalerank: p.scalerank,
-      pop: p.pop_max,
-      capital: p.adm0cap === 1 ? 1 : 0,
-      country: p.adm0name,
+      name: p.NAME,
+      name_en: p.NAME_EN,
+      name_fr: p.NAME_FR,
+      scalerank: p.SCALERANK,
+      pop: p.POP_MAX,
+      capital: p.ADM0CAP === 1 ? 1 : 0,
+      country: p.ADM0NAME,
     }
   }
   const placesSlimFile = path.join(workDir, "places-slim.geojson")

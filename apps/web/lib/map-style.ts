@@ -1,4 +1,46 @@
-import type { StyleSpecification } from "maplibre-gl"
+import type { ExpressionSpecification, StyleSpecification } from "maplibre-gl"
+
+import { WORLD_COUNTRIES } from "@workspace/engine"
+
+import { countryNameOrNull } from "@/lib/country-names"
+import type { Locale } from "@/lib/i18n"
+
+/**
+ * City label text for a locale: prefer the locale's name, then English, then
+ * the tile's default `name`. Localized city names live in world.pmtiles only
+ * after it is rebuilt from the full Natural Earth places dataset
+ * (`bun run build:map-data --world --force`); until then the coalesce simply
+ * falls back to `name`, so nothing breaks.
+ */
+export function cityLabelTextField(locale: Locale): ExpressionSpecification {
+  if (locale === "en") return ["coalesce", ["get", "name_en"], ["get", "name"]]
+  return [
+    "coalesce",
+    ["get", `name_${locale}`],
+    ["get", "name_en"],
+    ["get", "name"],
+  ]
+}
+
+/**
+ * Country label text for a locale: an ISO code → localized name match built
+ * from Intl.DisplayNames, so map labels stay consistent with the country
+ * picker without baking names into the tiles. Codes outside the roster
+ * (territories, disputed areas) fall back to the tile's `name`.
+ */
+export function countryLabelTextField(locale: Locale): ExpressionSpecification {
+  const cases: string[] = []
+  for (const { code } of WORLD_COUNTRIES) {
+    const name = countryNameOrNull(code, locale)
+    if (name) cases.push(code, name)
+  }
+  return [
+    "match",
+    ["get", "iso_a2"],
+    ...cases,
+    ["get", "name"],
+  ] as unknown as ExpressionSpecification
+}
 
 /**
  * Satellite hybrid style, Google Maps-like.

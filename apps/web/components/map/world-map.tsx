@@ -7,9 +7,28 @@ import { Protocol } from "pmtiles"
 import "maplibre-gl/dist/maplibre-gl.css"
 
 import { useI18n } from "@/hooks/use-i18n"
-import { mapStyle } from "@/lib/map-style"
+import { localizedCountryName } from "@/lib/country-names"
+import type { Locale } from "@/lib/i18n"
+import {
+  cityLabelTextField,
+  countryLabelTextField,
+  mapStyle,
+} from "@/lib/map-style"
 
 let protocolRegistered = false
+
+// City and country labels render localized text; region labels stay as the
+// tiles ship them (GADM only provides English NAME_1 offline).
+function applyMapLocale(map: maplibregl.Map, locale: Locale) {
+  if (map.getLayer("city-labels"))
+    map.setLayoutProperty("city-labels", "text-field", cityLabelTextField(locale))
+  if (map.getLayer("country-labels"))
+    map.setLayoutProperty(
+      "country-labels",
+      "text-field",
+      countryLabelTextField(locale)
+    )
+}
 
 function registerPmtilesProtocol() {
   if (protocolRegistered) return
@@ -47,9 +66,12 @@ type HoverTarget = {
 }
 
 export function WorldMap() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  // The map is created once; the mousemove handler reads the live locale
+  // through this ref to label country hovers without re-running the effect.
+  const localeRef = useRef(locale)
   const [loaded, setLoaded] = useState(false)
   const [projection, setProjection] = useState<ProjectionMode>("globe")
   const [hoverLabel, setHoverLabel] = useState<string | null>(null)
@@ -136,13 +158,18 @@ export function WorldMap() {
         },
         useRegions
           ? `${props.name as string}, ${props.country as string}`
-          : ((props.name as string) ?? null)
+          : localizedCountryName(
+              props.iso_a2 as string | undefined,
+              localeRef.current,
+              (props.name as string) ?? null
+            )
       )
     })
     map.on("mouseout", () => setHover(null, null))
 
     map.on("load", () => {
       setLoaded(true)
+      applyMapLocale(map, localeRef.current)
       const stored = readStoredProjection()
       if (stored === "mercator") {
         map.setProjection({ type: "mercator" })
@@ -156,6 +183,13 @@ export function WorldMap() {
       map.remove()
     }
   }, [])
+
+  // Re-label city and country layers when the locale changes.
+  useEffect(() => {
+    localeRef.current = locale
+    const map = mapRef.current
+    if (map && loaded) applyMapLocale(map, locale)
+  }, [locale, loaded])
 
   const switchProjection = (mode: ProjectionMode) => {
     setProjection(mode)
