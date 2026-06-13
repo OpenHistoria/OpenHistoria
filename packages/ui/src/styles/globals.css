@@ -130,3 +130,39 @@
     cursor: pointer;
     }
 }
+
+/* Sit the zoom control just below the Globe/Flat toggle, same right inset.
+   Extra class selector beats maplibre's own margin rule (equal specificity). */
+.maplibregl-ctrl-top-right .maplibregl-ctrl.maplibregl-ctrl-group {
+  margin-top: 3rem;
+  margin-right: 0.625rem;
+}
+
+/* Match maplibre's zoom controls to the dark-glass HUD chips. */
+.maplibregl-ctrl.maplibregl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: color-mix(in oklch, var(--background) 80%, transparent);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.maplibregl-ctrl-group button {
+  width: 30px;
+  height: 30px;
+  background-color: transparent;
+}
+.maplibregl-ctrl-group button:not(:first-child) {
+  border-top: 1px solid var(--border);
+}
+.maplibregl-ctrl-group button:hover {
+  background-color: var(--accent);
+}
+.maplibregl-ctrl-group button:disabled {
+  opacity: 0.4;
+}
+/* maplibre ships dark glyphs; flip them light to read on the dark control. */
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1);
+}

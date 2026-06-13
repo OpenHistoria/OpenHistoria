@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from "react"
 import { Result } from "better-result"
 import maplibregl from "maplibre-gl"
 import { Protocol } from "pmtiles"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { GlobalIcon, MapsSquare01Icon } from "@hugeicons/core-free-icons"
 import "maplibre-gl/dist/maplibre-gl.css"
 
+import { useMapContext } from "@/components/map/map-context"
 import { useI18n } from "@/hooks/use-i18n"
 import { localizedCountryName } from "@/lib/country-names"
 import type { Locale } from "@/lib/i18n"
@@ -67,6 +70,7 @@ type HoverTarget = {
 
 export function WorldMap() {
   const { t, locale } = useI18n()
+  const { setMap } = useMapContext()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   // The map is created once; the mousemove handler reads the live locale
@@ -93,7 +97,8 @@ export function WorldMap() {
       hash: true,
       // No label fade-in: symbols appear instantly while zooming.
       fadeDuration: 0,
-      attributionControl: { compact: true },
+      // No attribution/imagery-source control.
+      attributionControl: false,
     })
     mapRef.current = map
 
@@ -102,9 +107,10 @@ export function WorldMap() {
     map.scrollZoom.setWheelZoomRate(1 / 150)
     map.scrollZoom.setZoomRate(1 / 65)
 
+    // Top-right so the bottom-right corner is free for the time-controls deck.
     map.addControl(
       new maplibregl.NavigationControl({ showCompass: false }),
-      "bottom-right"
+      "top-right"
     )
 
     // Idle spin: slow drift until the user interacts.
@@ -169,6 +175,7 @@ export function WorldMap() {
 
     map.on("load", () => {
       setLoaded(true)
+      setMap(map)
       applyMapLocale(map, localeRef.current)
       const stored = readStoredProjection()
       if (stored === "mercator") {
@@ -180,9 +187,10 @@ export function WorldMap() {
 
     return () => {
       mapRef.current = null
+      setMap(null)
       map.remove()
     }
-  }, [])
+  }, [setMap])
 
   // Re-label city and country layers when the locale changes.
   useEffect(() => {
@@ -203,30 +211,32 @@ export function WorldMap() {
         ref={containerRef}
         className={`h-full w-full transition-opacity duration-700 ${loaded ? "opacity-100" : "opacity-0"}`}
       />
-      <div className="absolute top-4 right-4 z-10 flex overflow-hidden rounded-md bg-black/60 text-xs font-medium text-white backdrop-blur-sm">
+      <div className="absolute top-2.5 right-2.5 z-10 flex overflow-hidden rounded-md border border-border bg-background/80 text-xs font-medium text-foreground backdrop-blur-sm">
         {(
           [
-            ["globe", t.map.globe],
-            ["mercator", t.map.flat],
+            ["globe", t.map.globe, GlobalIcon],
+            ["mercator", t.map.flat, MapsSquare01Icon],
           ] as const
-        ).map(([mode, label]) => (
+        ).map(([mode, label, icon]) => (
           <button
             key={mode}
             type="button"
             aria-pressed={projection === mode}
             onClick={() => switchProjection(mode)}
-            className={`cursor-pointer px-3 py-1.5 transition-colors ${
+            title={label}
+            className={`flex cursor-pointer items-center gap-1.5 px-2.5 py-1.5 transition-colors ${
               projection === mode
-                ? "bg-white/25 text-white"
-                : "text-white/60 hover:text-white"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
+            <HugeiconsIcon icon={icon} strokeWidth={2} className="size-3.5" />
             {label}
           </button>
         ))}
       </div>
       {hoverLabel && (
-        <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-1.5 text-sm font-medium tracking-wide text-white backdrop-blur-sm">
+        <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background/80 px-4 py-1.5 text-sm font-medium tracking-wide text-foreground backdrop-blur-sm">
           {hoverLabel}
         </div>
       )}

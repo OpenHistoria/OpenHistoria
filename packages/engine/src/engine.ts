@@ -11,8 +11,8 @@ import { buildSystemPrompt, buildTurnPrompt } from "@workspace/engine/prompts"
 import type { GameStore, GameStoreError } from "@workspace/engine/store"
 import {
   addMonths,
+  clampDay,
   compareGameDates,
-  minGameDate,
   toTimeline,
   TurnOutputSchema,
   type ChatMessage,
@@ -36,7 +36,7 @@ export class GameCompletedError extends TaggedError("GameCompleted")<{
 /** No OpenRouter key available; the player must connect first. */
 export class MissingApiKeyError extends TaggedError("MissingApiKey")() {}
 
-/** startYear must fall within [minYear, endYear]. */
+/** startYear must fall within [minYear, maxYear]. */
 export class InvalidStartYearError extends TaggedError("InvalidStartYear")<{
   startYear: number
 }>() {}
@@ -45,6 +45,36 @@ export class InvalidStartYearError extends TaggedError("InvalidStartYear")<{
 export class InvalidTurnOutputError extends TaggedError("InvalidTurnOutput")<{
   raw: string
 }>() {}
+
+/** A save file did not match the expected snapshot shape. */
+export class InvalidSnapshotError extends TaggedError("InvalidSnapshot")() {}
+
+export const SNAPSHOT_VERSION = 1 as const
+
+/** A self-contained, portable save: a game plus everything attached to it. */
+export interface GameSnapshot {
+  version: typeof SNAPSHOT_VERSION
+  game: Game
+  messages: ChatMessage[]
+  events: GameEvent[]
+  scheduled: ScheduledEvent[]
+}
+
+const isSnapshot = (value: unknown): value is GameSnapshot => {
+  if (typeof value !== "object" || value === null) return false
+  const s = value as Record<string, unknown>
+  const game = s.game as Record<string, unknown> | undefined
+  return (
+    s.version === SNAPSHOT_VERSION &&
+    typeof game === "object" &&
+    game !== null &&
+    typeof game.countryCode === "string" &&
+    typeof game.startYear === "number" &&
+    Array.isArray(s.messages) &&
+    Array.isArray(s.events) &&
+    Array.isArray(s.scheduled)
+  )
+}
 
 export type AdvanceTimeError =
   | GameNotFoundError
@@ -60,13 +90,30 @@ export interface EngineConfig {
   getApiKey: () => string | null
   /** OpenRouter model id used for new games. */
   model?: string
-  /** Latest playable year; defaults to the current real-world year. */
+  /** Latest year a game may START in; defaults to the current real-world year. */
   maxYear?: number
   /** Earliest pickable start year. */
   minYear?: number
   /** How many history messages to send to the model each turn. */
   historyWindow?: number
+  /** Cap on completion tokens per turn (defaults to DEFAULT_MAX_OUTPUT_TOKENS). */
+  maxOutputTokens?: number
 }
+
+/**
+ * How much in-game time one turn covers, in months. One month keeps each AI
+ * call to a short, granular span (with day-precise events) instead of
+ * generating a whole year at once.
+ */
+export const MONTHS_PER_TURN = 1
+
+/**
+ * Default per-turn completion cap. A turn's JSON (narration + events +
+ * scheduled events) fits comfortably here, and bounding it keeps OpenRouter
+ * from reserving a model's full max output against the player's balance, which
+ * otherwise 402s small/free-tier accounts before a turn even runs.
+ */
+export const DEFAULT_MAX_OUTPUT_TOKENS = 8192
 
 export interface CreateGameInput {
   countryCode: string
@@ -74,13 +121,32 @@ export interface CreateGameInput {
   startYear: number
   /** Override the engine-level model for this game. */
   model?: string
+  /** Language (English name) for generated content; defaults to English. */
+  language?: string
 }
 
+/** Fallback content language when a game does not specify one. */
+export const DEFAULT_LANGUAGE = "English"
+
+/**
+ * Sentinel model id meaning "rotate between the best free models each turn".
+ * Stored on the game; the client resolves it to a concrete model per turn via
+ * AdvanceTimeOptions.modelOverride.
+ */
+export const ROTATE_FREE_MODELS = "auto:rotate-free"
+
 export interface AdvanceTimeOptions {
-  /** How far the clock jumps this turn. Defaults to 12 (one year). */
+  /** How far the clock jumps this turn. Defaults to MONTHS_PER_TURN. */
   months?: number
   /** Player directives for the period, in natural language. */
   playerAction?: string
+  /** Fallback models OpenRouter routes to if the game's model errors/limits. */
+  fallbackModels?: string[]
+  /**
+   * Concrete model to use for this turn instead of the game's stored model.
+   * Used to resolve the ROTATE_FREE_MODELS sentinel to a real model per turn.
+   */
+  modelOverride?: string
 }
 
 const newId = () => crypto.randomUUID()
@@ -94,11 +160,12 @@ export class Engine {
   private readonly store: GameStore
   private readonly getApiKey: () => string | null
   private readonly model: string
-  /** Latest playable year; games end in December of this year. */
+  /** Latest year a game may start in. */
   readonly maxYear: number
   /** Earliest pickable start year. */
   readonly minYear: number
   private readonly historyWindow: number
+  private readonly maxOutputTokens: number
 
   constructor(config: EngineConfig) {
     this.store = config.store
@@ -107,6 +174,7 @@ export class Engine {
     this.maxYear = config.maxYear ?? new Date().getFullYear()
     this.minYear = config.minYear ?? 1800
     this.historyWindow = config.historyWindow ?? 16
+    this.maxOutputTokens = config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS
   }
 
   /**
@@ -128,15 +196,22 @@ export class Engine {
     }
 
     const now = Date.now()
+    // Begin at today's month and day (in the chosen start year), so a game
+    // started "now" opens on the real current date rather than January 1st.
+    const today = new Date(now)
     const game: Game = {
       id: newId(),
       countryCode: input.countryCode.toUpperCase(),
       countryName: input.countryName,
       startYear: input.startYear,
-      endYear: this.maxYear,
-      currentDate: { year: input.startYear, month: 1 },
+      currentDate: {
+        year: input.startYear,
+        month: today.getMonth() + 1,
+        day: today.getDate(),
+      },
       status: "active",
       model: input.model ?? this.model,
+      language: input.language ?? DEFAULT_LANGUAGE,
       createdAt: now,
       updatedAt: now,
     }
@@ -176,6 +251,19 @@ export class Engine {
 
   async deleteGame(gameId: string): Promise<Result<void, GameStoreError>> {
     return this.store.deleteGame(gameId)
+  }
+
+  /** Switches the OpenRouter model an existing game uses for future turns. */
+  async setGameModel(
+    gameId: string,
+    model: string
+  ): Promise<Result<Game, GameNotFoundError | GameStoreError>> {
+    const loaded = await this.getGame(gameId)
+    if (loaded.isErr()) return Result.err(loaded.error)
+    const updated: Game = { ...loaded.value, model, updatedAt: Date.now() }
+    const saved = await this.store.saveGame(updated)
+    if (saved.isErr()) return Result.err(saved.error)
+    return Result.ok(updated)
   }
 
   /** Full conversation log, oldest first. */
@@ -226,11 +314,9 @@ export class Engine {
       return Result.err(new MissingApiKeyError())
     }
 
-    const months = Math.max(1, Math.floor(options.months ?? 12))
-    const target = minGameDate(addMonths(game.currentDate, months), {
-      year: game.endYear,
-      month: 12,
-    })
+    // Games are open-ended: time just keeps moving forward, no end year.
+    const months = Math.max(1, Math.floor(options.months ?? MONTHS_PER_TURN))
+    const target = addMonths(game.currentDate, months)
 
     const scheduled = await this.store.listScheduled(gameId)
     if (scheduled.isErr()) return Result.err(scheduled.error)
@@ -252,7 +338,9 @@ export class Engine {
     })
     const completion = await requestCompletion({
       apiKey,
-      model: game.model,
+      model: options.modelOverride ?? game.model,
+      fallbackModels: options.fallbackModels,
+      maxTokens: this.maxOutputTokens,
       messages: [
         ...this.windowedHistory(history.value, game),
         { role: "user", content: turnPrompt },
@@ -273,49 +361,55 @@ export class Engine {
 
     const now = Date.now()
     const dueIds = new Set(due.map((event) => event.id))
-    const events: GameEvent[] = turn.events.map((event) => ({
-      id: newId(),
-      gameId,
-      date: this.clampDate(
-        { year: event.year, month: event.month },
+    const events: GameEvent[] = turn.events.map((event) => {
+      const date = this.clampDate(
+        clampDay({ year: event.year, month: event.month, day: event.day }),
         game.currentDate,
         target
-      ),
-      title: event.title,
-      description: event.description,
-      kind: event.kind,
-      countries: event.countries.map((code) => code.toUpperCase()),
-      location: event.location,
-      importance: event.importance,
-      source:
-        dueIds.size > 0 && due.some((d) => d.title === event.title)
-          ? "scheduled"
-          : "model",
-    }))
+      )
+      // Keep an end date only when it is a valid, later date.
+      let endDate: GameDate | null = null
+      if (event.end) {
+        const end = clampDay(event.end)
+        if (compareGameDates(end, date) > 0) endDate = end
+      }
+      return {
+        id: newId(),
+        gameId,
+        date,
+        endDate,
+        title: event.title,
+        description: event.description,
+        kind: event.kind,
+        countries: event.countries.map((code) => code.toUpperCase()),
+        location: event.location,
+        importance: event.importance,
+        source:
+          dueIds.size > 0 && due.some((d) => d.title === event.title)
+            ? "scheduled"
+            : "model",
+      }
+    })
 
     const newlyScheduled: ScheduledEvent[] = turn.scheduledEvents
       .map((event) => ({
         id: newId(),
         gameId,
-        dueDate: { year: event.year, month: event.month },
+        dueDate: clampDay({
+          year: event.year,
+          month: event.month,
+          day: event.day,
+        }),
         title: event.title,
         description: event.description,
         scheduledAt: target,
       }))
-      // Drop anything the model misdated into the past or beyond the game.
-      .filter(
-        (event) =>
-          compareGameDates(event.dueDate, target) > 0 &&
-          event.dueDate.year <= game.endYear
-      )
+      // Drop anything the model misdated into the past.
+      .filter((event) => compareGameDates(event.dueDate, target) > 0)
 
     const updatedGame: Game = {
       ...game,
       currentDate: target,
-      status:
-        target.year === game.endYear && target.month === 12
-          ? "completed"
-          : "active",
       updatedAt: now,
     }
 
@@ -356,6 +450,16 @@ export class Engine {
       narration: turn.narration,
       events,
       scheduled: newlyScheduled,
+      decision: turn.decision
+        ? {
+            title: turn.decision.title,
+            prompt: turn.decision.prompt,
+            options: turn.decision.options.map((o) => ({
+              label: o.label,
+              detail: o.detail,
+            })),
+          }
+        : null,
     })
   }
 
@@ -387,5 +491,66 @@ export class Engine {
     if (compareGameDates(date, from) < 0) return from
     if (compareGameDates(date, to) > 0) return to
     return date
+  }
+
+  /** Gathers a game and all its attached data into a portable snapshot. */
+  async exportGame(
+    gameId: string
+  ): Promise<Result<GameSnapshot, GameNotFoundError | GameStoreError>> {
+    const game = await this.getGame(gameId)
+    if (game.isErr()) return Result.err(game.error)
+
+    const [messages, events, scheduled] = await Promise.all([
+      this.store.listMessages(gameId),
+      this.store.listEvents(gameId),
+      this.store.listScheduled(gameId),
+    ])
+    if (messages.isErr()) return Result.err(messages.error)
+    if (events.isErr()) return Result.err(events.error)
+    if (scheduled.isErr()) return Result.err(scheduled.error)
+
+    return Result.ok({
+      version: SNAPSHOT_VERSION,
+      game: game.value,
+      messages: messages.value,
+      events: events.value,
+      scheduled: scheduled.value,
+    })
+  }
+
+  /**
+   * Restores a snapshot as a brand-new game: a fresh id is minted and every
+   * attached record is re-pointed at it, so importing never clobbers an
+   * existing game and the same file can be imported more than once.
+   */
+  async importGame(
+    snapshot: unknown
+  ): Promise<Result<Game, InvalidSnapshotError | GameStoreError>> {
+    if (!isSnapshot(snapshot)) return Result.err(new InvalidSnapshotError())
+
+    const now = Date.now()
+    const id = newId()
+    const game: Game = { ...snapshot.game, id, updatedAt: now }
+    const reId = <T extends { gameId: string }>(record: T): T => ({
+      ...record,
+      gameId: id,
+    })
+
+    const saved = await this.store.saveGame(game)
+    if (saved.isErr()) return Result.err(saved.error)
+    const messages = await this.store.appendMessages(
+      id,
+      snapshot.messages.map(reId)
+    )
+    if (messages.isErr()) return Result.err(messages.error)
+    const events = await this.store.appendEvents(id, snapshot.events.map(reId))
+    if (events.isErr()) return Result.err(events.error)
+    const scheduled = await this.store.putScheduled(
+      id,
+      snapshot.scheduled.map(reId)
+    )
+    if (scheduled.isErr()) return Result.err(scheduled.error)
+
+    return Result.ok(game)
   }
 }

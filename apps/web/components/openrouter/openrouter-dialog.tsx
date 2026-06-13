@@ -57,22 +57,20 @@ export function OpenRouterDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" closeLabel={t.common.close}>
         <DialogHeader>
-          <div className="flex size-10 items-center justify-center rounded-lg bg-foreground text-background">
-            <OpenRouterLogo className="size-5" />
-          </div>
+          <OpenRouterLogo className="size-4" />
           <DialogTitle>
             {status === "connected"
               ? t.openrouter.titleConnected
               : t.openrouter.titleConnect}
           </DialogTitle>
-          <DialogDescription>
-            {status === "connected"
-              ? t.openrouter.descriptionConnected
-              : t.openrouter.descriptionConnect}
-          </DialogDescription>
         </DialogHeader>
+        <DialogDescription>
+          {status === "connected"
+            ? t.openrouter.descriptionConnected
+            : t.openrouter.descriptionConnect}
+        </DialogDescription>
 
         {status === "loading" && (
           <div className="flex items-center justify-center py-6">

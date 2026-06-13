@@ -1,5 +1,7 @@
 import { Result } from "better-result"
 
+import type { AdvanceTimeError, EventKind } from "@workspace/engine"
+
 import type { OpenRouterError } from "@/lib/openrouter"
 
 /**
@@ -20,6 +22,13 @@ export const LOCALE_CHANGED_EVENT = "openhistoria:locale-changed"
 
 const isLocale = (value: unknown): value is Locale =>
   value === "en" || value === "fr"
+
+/**
+ * English name of a locale's language (e.g. "French"), used to tell the model
+ * which language to generate game content in.
+ */
+export const localeLanguageName = (locale: Locale): string =>
+  new Intl.DisplayNames(["en"], { type: "language" }).of(locale) ?? "English"
 
 // localStorage throws in Safari private mode and when storage is blocked;
 // the locale preference is best-effort, so swallow those failures.
@@ -70,6 +79,51 @@ export interface Messages {
     starting: string
     createFailedTitle: string
     createFailed: string
+    next: string
+    back: string
+    countryStepTitle: string
+    countryStepDescription: string
+    setupStepTitle: string
+    setupStepDescription: (country: string) => string
+    howItWorks: { title: string; body: string }[]
+    modelLabel: string
+    modelSearchPlaceholder: string
+    modelLoading: string
+    modelLoadError: string
+    modelNoMatch: (query: string) => string
+    modelDefaultBadge: string
+    modelBestFree: string
+    modelRotateFree: string
+    modelRotateFreeHint: string
+    modelFree: string
+    modelPrice: (input: number, output: number) => string
+  }
+  menu: {
+    open: string
+    settings: string
+    settingsTitle: string
+    settingsSubtitle: string
+    title: string
+    subtitle: string
+    resume: string
+    briefing: string
+    language: string
+    aiAccount: string
+    connect: string
+    manage: string
+    model: string
+    changeModel: string
+    modelDialogTitle: string
+    apply: string
+    exportSave: string
+    importSave: string
+    importFailed: string
+    exitGame: string
+    exitConfirmTitle: string
+    exitConfirmBody: string
+    exitConfirm: string
+    cancel: string
+    escHint: string
   }
   openrouter: {
     titleConnect: string
@@ -118,6 +172,55 @@ export interface Messages {
     network: string
     requestFailed: (status: number) => string
   }
+  game: {
+    statusActive: string
+    statusCompleted: string
+    completedNote: string
+    exit: string
+    briefingTitle: string
+    advanceYear: string
+    advancing: string
+    pause: string
+    play: string
+    speed: string
+    step: string
+    nextEventLabel: string
+    eventProgress: string
+    eventCountries: string
+    decisionBadge: string
+    decisionDismiss: string
+    directivesTitle: string
+    directivesHint: string
+    directivesPlaceholder: string
+    directivesAdd: string
+    directivesEmpty: string
+    directivesRemove: string
+    directivesPickLocation: string
+    directivesPicking: string
+    directivesClearLocation: string
+    narrationHeading: string
+    emptyFeed: string
+    turnFailedTitle: string
+    kinds: Record<EventKind, string>
+    errors: {
+      missingApiKey: string
+      gameCompleted: string
+      invalidOutput: string
+      network: string
+      requestFailed: (status: number, message?: string) => string
+      rateLimited: string
+      empty: string
+      storage: string
+      generic: string
+    }
+  }
+  common: {
+    close: string
+    theme: string
+    themeSystem: string
+    themeLight: string
+    themeDark: string
+  }
 }
 
 const en: Messages = {
@@ -139,13 +242,49 @@ const en: Messages = {
     selectedLabel: "selected",
     startYearLabel: "Start year",
     startYearHint: (min, max) =>
-      `Anywhere from ${min} to ${max}. The simulation runs from your start year to today.`,
+      `Anywhere from ${min} to ${max}. The simulation plays forward from there into an alternate future.`,
     cancel: "Cancel",
     start: "Start game",
     starting: "Creating world...",
     createFailedTitle: "Could not start the game",
     createFailed:
       "The game could not be saved in this browser. Check that storage is allowed and try again.",
+    next: "Next",
+    back: "Back",
+    countryStepTitle: "Welcome to Open Historia",
+    countryStepDescription:
+      "Choose any country in the world. History diverges from the year you pick, and you take charge from there.",
+    setupStepTitle: "Set the stage",
+    setupStepDescription: (country) =>
+      `You take the helm of ${country}. Choose where history begins.`,
+    howItWorks: [
+      {
+        title: "Advance time, one year at a time",
+        body: "Each turn the AI simulates a year: it narrates what unfolds and emits concrete events across the world.",
+      },
+      {
+        title: "Steer with directives",
+        body: "Before each year you can issue directives in plain language. The simulation weighs them as it plays the period out.",
+      },
+      {
+        title: "Bring your own AI",
+        body: "Turns run on your connected OpenRouter account, on your credits and under your control.",
+      },
+    ],
+    modelLabel: "AI model",
+    modelSearchPlaceholder: "Search models...",
+    modelLoading: "Loading models...",
+    modelLoadError:
+      "Could not load the model list; the default model will be used.",
+    modelNoMatch: (query) => `No model matches "${query}".`,
+    modelDefaultBadge: "Default",
+    modelBestFree: "Best free model",
+    modelRotateFree: "Rotate free models",
+    modelRotateFreeHint:
+      "Spreads each turn across the best free models to dodge rate limits.",
+    modelFree: "Free",
+    modelPrice: (input, output) =>
+      `$${input} in · $${output} out / 1M tokens`,
   },
   openrouter: {
     titleConnect: "Connect your OpenRouter account",
@@ -219,6 +358,97 @@ const en: Messages = {
     network: "Could not reach OpenRouter. Check your connection and try again.",
     requestFailed: (status) => `Could not reach OpenRouter (HTTP ${status}).`,
   },
+  game: {
+    statusActive: "In progress",
+    statusCompleted: "Game over",
+    completedNote: "The simulation has reached its final year.",
+    exit: "Exit game",
+    briefingTitle: "Briefing",
+    advanceYear: "Advance one month",
+    advancing: "Simulating...",
+    pause: "Pause",
+    play: "Play",
+    speed: "Speed",
+    step: "Advance one month",
+    nextEventLabel: "Next",
+    eventProgress: "Progress",
+    eventCountries: "Countries involved",
+    decisionBadge: "Decision",
+    decisionDismiss: "Decide later",
+    directivesTitle: "Directives",
+    directivesHint: "These orders steer the next month you simulate. Add as many as you like.",
+    directivesPlaceholder: "Add an order, then press Enter...",
+    directivesAdd: "Add",
+    directivesEmpty: "No directives yet.",
+    directivesRemove: "Remove directive",
+    directivesPickLocation: "Pick a location on the map (optional)",
+    directivesPicking: "Click the map to set this directive's location...",
+    directivesClearLocation: "Clear location",
+    narrationHeading: "This month",
+    emptyFeed: "No events yet. Advance time to set history in motion.",
+    turnFailedTitle: "Could not advance the year",
+    kinds: {
+      political: "Political",
+      military: "Military",
+      economic: "Economic",
+      diplomatic: "Diplomatic",
+      social: "Social",
+      scientific: "Scientific",
+      disaster: "Disaster",
+    },
+    errors: {
+      missingApiKey:
+        "Connect your OpenRouter account first to let the AI run the simulation.",
+      gameCompleted: "This game has already reached its final year.",
+      invalidOutput:
+        "The AI returned an unexpected response. Try advancing again.",
+      network: "Could not reach OpenRouter. Check your connection and try again.",
+      requestFailed: (status, message) =>
+        message
+          ? `OpenRouter rejected the request (HTTP ${status}): ${message}`
+          : `OpenRouter rejected the request (HTTP ${status}). Check your key, credits, and selected model.`,
+      rateLimited:
+        "The model provider is rate-limiting requests (free models are heavily limited). Wait a moment, lower the speed, switch model, or add OpenRouter credits.",
+      empty: "The AI returned an empty response. Try again.",
+      storage: "The game state could not be saved. Try again.",
+      generic: "Something went wrong advancing the year. Try again.",
+    },
+  },
+  menu: {
+    open: "Menu",
+    settings: "Settings",
+    settingsTitle: "Settings",
+    settingsSubtitle: "Choose your language and connect AI.",
+    title: "Paused",
+    subtitle: "Manage your game or head back to it.",
+    resume: "Resume",
+    briefing: "Briefing",
+    language: "Language",
+    aiAccount: "AI account",
+    connect: "Connect",
+    manage: "Manage",
+    model: "AI model",
+    changeModel: "Change",
+    modelDialogTitle: "Choose AI model",
+    apply: "Apply",
+    exportSave: "Export save",
+    importSave: "Import save",
+    importFailed: "That file is not a valid Open Historia save.",
+    exitGame: "Exit to map",
+    exitConfirmTitle: "Exit this game?",
+    exitConfirmBody:
+      "Your progress stays saved and you can resume it later. You will return to the world map.",
+    exitConfirm: "Exit to map",
+    cancel: "Cancel",
+    escHint: "Press Esc to open or close this menu.",
+  },
+  common: {
+    close: "Close",
+    theme: "Theme",
+    themeSystem: "System theme",
+    themeLight: "Light theme",
+    themeDark: "Dark theme",
+  },
 }
 
 const fr: Messages = {
@@ -240,13 +470,49 @@ const fr: Messages = {
     selectedLabel: "sélectionné",
     startYearLabel: "Année de départ",
     startYearHint: (min, max) =>
-      `De ${min} à ${max}. La simulation court de votre année de départ à aujourd'hui.`,
+      `De ${min} à ${max}. La simulation se déroule ensuite vers un futur alternatif.`,
     cancel: "Annuler",
     start: "Lancer la partie",
     starting: "Création du monde...",
     createFailedTitle: "Impossible de lancer la partie",
     createFailed:
       "La partie n'a pas pu être enregistrée dans ce navigateur. Vérifiez que le stockage est autorisé et réessayez.",
+    next: "Suivant",
+    back: "Retour",
+    countryStepTitle: "Bienvenue dans Open Historia",
+    countryStepDescription:
+      "Choisissez n'importe quel pays du monde. L'histoire diverge à partir de l'année choisie, et vous prenez les commandes.",
+    setupStepTitle: "Plantez le décor",
+    setupStepDescription: (country) =>
+      `Vous prenez la tête de ${country}. Choisissez le point de départ de l'histoire.`,
+    howItWorks: [
+      {
+        title: "Avancez le temps, année par année",
+        body: "À chaque tour, l'IA simule une année : elle raconte ce qui se passe et génère des événements concrets à travers le monde.",
+      },
+      {
+        title: "Orientez avec des directives",
+        body: "Avant chaque année, vous pouvez donner des directives en langage naturel. La simulation en tient compte pour dérouler la période.",
+      },
+      {
+        title: "Utilisez votre propre IA",
+        body: "Les tours fonctionnent avec votre compte OpenRouter, sur vos crédits et sous votre contrôle.",
+      },
+    ],
+    modelLabel: "Modèle d'IA",
+    modelSearchPlaceholder: "Rechercher un modèle...",
+    modelLoading: "Chargement des modèles...",
+    modelLoadError:
+      "Impossible de charger la liste des modèles ; le modèle par défaut sera utilisé.",
+    modelNoMatch: (query) => `Aucun modèle ne correspond à « ${query} ».`,
+    modelDefaultBadge: "Défaut",
+    modelBestFree: "Meilleur modèle gratuit",
+    modelRotateFree: "Alterner les modèles gratuits",
+    modelRotateFreeHint:
+      "Répartit chaque tour sur les meilleurs modèles gratuits pour éviter les limites.",
+    modelFree: "Gratuit",
+    modelPrice: (input, output) =>
+      `${input} $ entrée · ${output} $ sortie / 1M tokens`,
   },
   openrouter: {
     titleConnect: "Connectez votre compte OpenRouter",
@@ -323,6 +589,99 @@ const fr: Messages = {
     requestFailed: (status) =>
       `Impossible de joindre OpenRouter (HTTP ${status}).`,
   },
+  game: {
+    statusActive: "En cours",
+    statusCompleted: "Partie terminée",
+    completedNote: "La simulation a atteint sa dernière année.",
+    exit: "Quitter la partie",
+    briefingTitle: "Briefing",
+    advanceYear: "Avancer d'un mois",
+    advancing: "Simulation...",
+    pause: "Pause",
+    play: "Lecture",
+    speed: "Vitesse",
+    step: "Avancer d'un mois",
+    nextEventLabel: "À venir",
+    eventProgress: "Avancement",
+    eventCountries: "Pays impliqués",
+    decisionBadge: "Décision",
+    decisionDismiss: "Décider plus tard",
+    directivesTitle: "Directives",
+    directivesHint: "Ces ordres orientent le mois suivant. Ajoutez-en autant que vous voulez.",
+    directivesPlaceholder: "Ajoutez un ordre, puis Entrée...",
+    directivesAdd: "Ajouter",
+    directivesEmpty: "Aucune directive.",
+    directivesRemove: "Retirer la directive",
+    directivesPickLocation: "Choisir un lieu sur la carte (facultatif)",
+    directivesPicking: "Cliquez sur la carte pour situer cette directive...",
+    directivesClearLocation: "Effacer le lieu",
+    narrationHeading: "Ce mois-ci",
+    emptyFeed:
+      "Aucun événement pour l'instant. Avancez le temps pour lancer l'histoire.",
+    turnFailedTitle: "Impossible d'avancer dans le temps",
+    kinds: {
+      political: "Politique",
+      military: "Militaire",
+      economic: "Économique",
+      diplomatic: "Diplomatique",
+      social: "Social",
+      scientific: "Scientifique",
+      disaster: "Catastrophe",
+    },
+    errors: {
+      missingApiKey:
+        "Connectez d'abord votre compte OpenRouter pour laisser l'IA piloter la simulation.",
+      gameCompleted: "Cette partie a déjà atteint sa dernière année.",
+      invalidOutput:
+        "L'IA a renvoyé une réponse inattendue. Réessayez d'avancer.",
+      network:
+        "Impossible de joindre OpenRouter. Vérifiez votre connexion et réessayez.",
+      requestFailed: (status, message) =>
+        message
+          ? `OpenRouter a rejeté la requête (HTTP ${status}) : ${message}`
+          : `OpenRouter a rejeté la requête (HTTP ${status}). Vérifiez votre clé, vos crédits et le modèle choisi.`,
+      rateLimited:
+        "Le fournisseur du modèle limite les requêtes (les modèles gratuits sont très limités). Patientez un instant, réduisez la vitesse, changez de modèle ou ajoutez des crédits OpenRouter.",
+      empty: "L'IA a renvoyé une réponse vide. Réessayez.",
+      storage: "L'état de la partie n'a pas pu être enregistré. Réessayez.",
+      generic: "Une erreur est survenue en avançant dans le temps. Réessayez.",
+    },
+  },
+  menu: {
+    open: "Menu",
+    settings: "Paramètres",
+    settingsTitle: "Paramètres",
+    settingsSubtitle: "Choisissez votre langue et connectez l'IA.",
+    title: "En pause",
+    subtitle: "Gérez votre partie ou reprenez-la.",
+    resume: "Reprendre",
+    briefing: "Briefing",
+    language: "Langue",
+    aiAccount: "Compte IA",
+    connect: "Connecter",
+    manage: "Gérer",
+    model: "Modèle d'IA",
+    changeModel: "Changer",
+    modelDialogTitle: "Choisir le modèle d'IA",
+    apply: "Appliquer",
+    exportSave: "Exporter la sauvegarde",
+    importSave: "Importer une sauvegarde",
+    importFailed: "Ce fichier n'est pas une sauvegarde Open Historia valide.",
+    exitGame: "Retour à la carte",
+    exitConfirmTitle: "Quitter cette partie ?",
+    exitConfirmBody:
+      "Votre progression reste enregistrée et vous pourrez la reprendre plus tard. Vous reviendrez à la carte du monde.",
+    exitConfirm: "Retour à la carte",
+    cancel: "Annuler",
+    escHint: "Appuyez sur Échap pour ouvrir ou fermer ce menu.",
+  },
+  common: {
+    close: "Fermer",
+    theme: "Thème",
+    themeSystem: "Thème système",
+    themeLight: "Thème clair",
+    themeDark: "Thème sombre",
+  },
 }
 
 export const MESSAGES: Record<Locale, Messages> = { en, fr }
@@ -343,5 +702,34 @@ export const formatOpenRouterError = (
       return messages.errors.network
     case "OpenRouterRequestFailed":
       return messages.errors.requestFailed(error.status)
+  }
+}
+
+/** Maps an advanceTime failure to a localized, user-presentable message. */
+export const formatTurnError = (
+  messages: Messages,
+  error: AdvanceTimeError
+): string => {
+  const e = messages.game.errors
+  switch (error._tag) {
+    case "MissingApiKey":
+      return e.missingApiKey
+    case "GameCompleted":
+      return e.gameCompleted
+    case "InvalidTurnOutput":
+      return e.invalidOutput
+    case "CompletionNetworkError":
+      return e.network
+    case "CompletionRequestFailed":
+      return error.status === 429
+        ? e.rateLimited
+        : e.requestFailed(error.status, error.message)
+    case "CompletionEmpty":
+      return e.empty
+    case "StoreReadError":
+    case "StoreWriteError":
+      return e.storage
+    default:
+      return e.generic
   }
 }

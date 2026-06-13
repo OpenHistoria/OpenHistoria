@@ -10,18 +10,42 @@ import { z } from "zod"
  * events that are handed back to it when their date comes due.
  */
 
-/** In-game calendar position. Month is 1-12. */
+/** In-game calendar position. Month is 1-12, day is 1-31. */
 export interface GameDate {
   year: number
   month: number
+  day: number
 }
 
 export const compareGameDates = (a: GameDate, b: GameDate): number =>
-  a.year - b.year || a.month - b.month
+  a.year - b.year || a.month - b.month || a.day - b.day
+
+/** Number of days in a given 1-based month, leap years included. */
+export const daysInMonth = (year: number, month: number): number =>
+  new Date(Date.UTC(year, month, 0)).getUTCDate()
+
+/** Clamps a day to a valid value for its month (e.g. Feb 30 becomes Feb 28/29). */
+export const clampDay = (date: GameDate): GameDate => ({
+  ...date,
+  day: Math.min(Math.max(1, date.day), daysInMonth(date.year, date.month)),
+})
 
 export const addMonths = (date: GameDate, months: number): GameDate => {
   const total = date.year * 12 + (date.month - 1) + months
-  return { year: Math.floor(total / 12), month: (total % 12) + 1 }
+  const year = Math.floor(total / 12)
+  const month = (total % 12) + 1
+  // Keep the day of month, pulling it back when the target month is shorter.
+  return { year, month, day: Math.min(date.day, daysInMonth(year, month)) }
+}
+
+/** Adds (or subtracts) whole days, rolling months and years over correctly. */
+export const addDays = (date: GameDate, days: number): GameDate => {
+  const d = new Date(Date.UTC(date.year, date.month - 1, date.day + days))
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+  }
 }
 
 export const minGameDate = (a: GameDate, b: GameDate): GameDate =>
@@ -43,7 +67,7 @@ export const MONTH_NAMES = [
 ] as const
 
 export const formatGameDate = (date: GameDate): string =>
-  `${MONTH_NAMES[date.month - 1]} ${date.year}`
+  `${MONTH_NAMES[date.month - 1]} ${date.day}, ${date.year}`
 
 export type GameStatus = "active" | "completed"
 
@@ -53,12 +77,16 @@ export interface Game {
   countryCode: string
   countryName: string
   startYear: number
-  /** The game cannot advance past December of this year. */
-  endYear: number
   currentDate: GameDate
   status: GameStatus
   /** OpenRouter model id this game is played with. */
   model: string
+  /**
+   * Human language the model writes narration and events in, as an English
+   * language name (e.g. "English", "French"). Set from the UI locale at
+   * creation so generated content matches what the player reads.
+   */
+  language: string
   /** Real-world timestamps (ms since epoch). */
   createdAt: number
   updatedAt: number
@@ -105,6 +133,11 @@ export interface GameEvent {
   id: string
   gameId: string
   date: GameDate
+  /**
+   * For events that span time (wars, construction, crises), the date it ends.
+   * Null for instantaneous events.
+   */
+  endDate: GameDate | null
   title: string
   description: string
   kind: EventKind
@@ -133,6 +166,26 @@ export interface ScheduledEvent {
   scheduledAt: GameDate
 }
 
+/** One choice the player can make in response to a decision. */
+export interface DecisionOption {
+  /** Short button label, e.g. "Mobilize the reserves". */
+  label: string
+  /** One-line consequence/summary shown under the label. */
+  detail: string
+}
+
+/**
+ * A Crusader-Kings-style choice the simulation surfaces when the player's
+ * nation faces a real fork. The game pauses and asks; the chosen option
+ * becomes the player's directive for the next period.
+ */
+export interface GameDecision {
+  title: string
+  /** The situation, addressed to the player. */
+  prompt: string
+  options: DecisionOption[]
+}
+
 /** Events sorted chronologically: the game's timeline. */
 export const toTimeline = (events: GameEvent[]): GameEvent[] =>
   [...events].sort(
@@ -150,6 +203,15 @@ export const ModelEventSchema = z.strictObject({
   kind: z.enum(EVENT_KINDS),
   year: z.number().int(),
   month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
+  /** End date for events that span time; null for instantaneous ones. */
+  end: z
+    .strictObject({
+      year: z.number().int(),
+      month: z.number().int().min(1).max(12),
+      day: z.number().int().min(1).max(31),
+    })
+    .nullable(),
   countries: z.array(z.string()),
   location: z
     .strictObject({ lat: z.number(), lng: z.number(), label: z.string() })
@@ -162,6 +224,16 @@ export const ModelScheduledEventSchema = z.strictObject({
   description: z.string(),
   year: z.number().int(),
   month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
+})
+
+export const ModelDecisionSchema = z.strictObject({
+  title: z.string(),
+  prompt: z.string(),
+  options: z
+    .array(z.strictObject({ label: z.string(), detail: z.string() }))
+    .min(2)
+    .max(4),
 })
 
 export const TurnOutputSchema = z.strictObject({
@@ -170,6 +242,11 @@ export const TurnOutputSchema = z.strictObject({
   events: z.array(ModelEventSchema),
   /** Future events to queue; resolved when the clock reaches them. */
   scheduledEvents: z.array(ModelScheduledEventSchema),
+  /**
+   * A choice for the player when the nation faces a real fork this period;
+   * null when nothing needs deciding. Raising one pauses the game.
+   */
+  decision: ModelDecisionSchema.nullable(),
 })
 
 export type TurnOutput = z.infer<typeof TurnOutputSchema>
@@ -180,4 +257,6 @@ export interface TurnResult {
   narration: string
   events: GameEvent[]
   scheduled: ScheduledEvent[]
+  /** A choice the player must make, or null when none was raised. */
+  decision: GameDecision | null
 }

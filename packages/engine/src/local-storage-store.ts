@@ -68,11 +68,11 @@ export class LocalStorageGameStore implements GameStore {
 
   async listGames(): StoreResult<Game[]> {
     const ids = this.readList<string>(indexKey())
-    if (ids.isErr()) return ids
+    if (ids.isErr()) return Result.err(ids.error)
     const games: Game[] = []
     for (const id of ids.value) {
       const game = this.read<Game>(gameKey(id))
-      if (game.isErr()) return game
+      if (game.isErr()) return Result.err(game.error)
       if (game.value) games.push(game.value)
     }
     return Result.ok(games)
@@ -84,7 +84,7 @@ export class LocalStorageGameStore implements GameStore {
 
   async saveGame(game: Game): StoreResult<void> {
     const ids = this.readList<string>(indexKey())
-    if (ids.isErr()) return ids
+    if (ids.isErr()) return Result.err(ids.error)
     if (!ids.value.includes(game.id)) {
       const indexed = this.write(indexKey(), [...ids.value, game.id])
       if (indexed.isErr()) return indexed
@@ -94,7 +94,7 @@ export class LocalStorageGameStore implements GameStore {
 
   async deleteGame(gameId: string): StoreResult<void> {
     const ids = this.readList<string>(indexKey())
-    if (ids.isErr()) return ids
+    if (ids.isErr()) return Result.err(ids.error)
     const reindexed = this.write(
       indexKey(),
       ids.value.filter((id) => id !== gameId)

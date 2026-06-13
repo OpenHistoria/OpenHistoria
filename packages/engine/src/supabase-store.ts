@@ -39,11 +39,12 @@ interface GameRow {
   country_code: string
   country_name: string
   start_year: number
-  end_year: number
   current_year: number
   current_month: number
+  current_day: number
   status: string
   model: string
+  language: string
   created_at: string
   updated_at: string
 }
@@ -55,6 +56,7 @@ interface MessageRow {
   content: string
   game_year: number
   game_month: number
+  game_day: number
   created_at: string
 }
 
@@ -63,6 +65,10 @@ interface EventRow {
   game_id: string
   year: number
   month: number
+  day: number
+  end_year: number | null
+  end_month: number | null
+  end_day: number | null
   title: string
   description: string
   kind: string
@@ -79,8 +85,10 @@ interface ScheduledRow {
   game_id: string
   due_year: number
   due_month: number
+  due_day: number
   scheduled_year: number
   scheduled_month: number
+  scheduled_day: number
   title: string
   description: string
 }
@@ -93,10 +101,14 @@ const gameFromRow = (row: GameRow): Game => ({
   countryCode: row.country_code,
   countryName: row.country_name,
   startYear: row.start_year,
-  endYear: row.end_year,
-  currentDate: { year: row.current_year, month: row.current_month },
+  currentDate: {
+    year: row.current_year,
+    month: row.current_month,
+    day: row.current_day,
+  },
   status: row.status as GameStatus,
   model: row.model,
+  language: row.language,
   createdAt: fromIso(row.created_at),
   updatedAt: fromIso(row.updated_at),
 })
@@ -106,11 +118,12 @@ const gameToRow = (game: Game): GameRow => ({
   country_code: game.countryCode,
   country_name: game.countryName,
   start_year: game.startYear,
-  end_year: game.endYear,
   current_year: game.currentDate.year,
   current_month: game.currentDate.month,
+  current_day: game.currentDate.day,
   status: game.status,
   model: game.model,
+  language: game.language,
   created_at: toIso(game.createdAt),
   updated_at: toIso(game.updatedAt),
 })
@@ -120,7 +133,7 @@ const messageFromRow = (row: MessageRow): ChatMessage => ({
   gameId: row.game_id,
   role: row.role as ChatRole,
   content: row.content,
-  gameDate: { year: row.game_year, month: row.game_month },
+  gameDate: { year: row.game_year, month: row.game_month, day: row.game_day },
   createdAt: fromIso(row.created_at),
 })
 
@@ -131,13 +144,18 @@ const messageToRow = (message: ChatMessage): MessageRow => ({
   content: message.content,
   game_year: message.gameDate.year,
   game_month: message.gameDate.month,
+  game_day: message.gameDate.day,
   created_at: toIso(message.createdAt),
 })
 
 const eventFromRow = (row: EventRow): GameEvent => ({
   id: row.id,
   gameId: row.game_id,
-  date: { year: row.year, month: row.month },
+  date: { year: row.year, month: row.month, day: row.day },
+  endDate:
+    row.end_year !== null && row.end_month !== null && row.end_day !== null
+      ? { year: row.end_year, month: row.end_month, day: row.end_day }
+      : null,
   title: row.title,
   description: row.description,
   kind: row.kind as EventKind,
@@ -155,6 +173,10 @@ const eventToRow = (event: GameEvent): EventRow => ({
   game_id: event.gameId,
   year: event.date.year,
   month: event.date.month,
+  day: event.date.day,
+  end_year: event.endDate?.year ?? null,
+  end_month: event.endDate?.month ?? null,
+  end_day: event.endDate?.day ?? null,
   title: event.title,
   description: event.description,
   kind: event.kind,
@@ -169,8 +191,12 @@ const eventToRow = (event: GameEvent): EventRow => ({
 const scheduledFromRow = (row: ScheduledRow): ScheduledEvent => ({
   id: row.id,
   gameId: row.game_id,
-  dueDate: { year: row.due_year, month: row.due_month },
-  scheduledAt: { year: row.scheduled_year, month: row.scheduled_month },
+  dueDate: { year: row.due_year, month: row.due_month, day: row.due_day },
+  scheduledAt: {
+    year: row.scheduled_year,
+    month: row.scheduled_month,
+    day: row.scheduled_day,
+  },
   title: row.title,
   description: row.description,
 })
@@ -180,8 +206,10 @@ const scheduledToRow = (event: ScheduledEvent): ScheduledRow => ({
   game_id: event.gameId,
   due_year: event.dueDate.year,
   due_month: event.dueDate.month,
+  due_day: event.dueDate.day,
   scheduled_year: event.scheduledAt.year,
   scheduled_month: event.scheduledAt.month,
+  scheduled_day: event.scheduledAt.day,
   title: event.title,
   description: event.description,
 })
@@ -286,6 +314,7 @@ export class SupabaseGameStore implements GameStore {
         .eq("game_id", gameId)
         .order("year", { ascending: true })
         .order("month", { ascending: true })
+        .order("day", { ascending: true })
     )
     return rows.map((list) => (list ?? []).map(eventFromRow))
   }
@@ -305,6 +334,7 @@ export class SupabaseGameStore implements GameStore {
         .eq("game_id", gameId)
         .order("due_year", { ascending: true })
         .order("due_month", { ascending: true })
+        .order("due_day", { ascending: true })
     )
     return rows.map((list) => (list ?? []).map(scheduledFromRow))
   }
