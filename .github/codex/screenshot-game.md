@@ -4,11 +4,16 @@ over satellite imagery) actually being played.
 
 Use ONLY the Playwright browser tools available to you (browser_navigate,
 browser_click, browser_type, browser_wait_for, browser_take_screenshot,
-browser_snapshot, and similar). Do NOT write code or run shell commands. Every
-screenshot you take is saved automatically to the configured output directory,
-so just give each one a short descriptive filename like `01-globe.png`.
+browser_snapshot, and similar). Do NOT write code or run shell commands.
 
-Deliverable: 3 to 6 clear screenshots showing the game in different states.
+CRITICAL: every call to browser_take_screenshot MUST include a `filename`
+argument ending in `.png` (for example `filename: "01-globe.png"`). The
+`filename` is what writes the PNG to the output directory; a screenshot taken
+without a `filename` is NOT saved to disk and does not count. Use a fresh,
+descriptive name for each one (`01-globe.png`, `02-game-start.png`, ...).
+
+Deliverable: 3 to 6 clear screenshots showing the game in different states,
+each saved to disk via an explicit `filename`.
 
 Steps:
 
