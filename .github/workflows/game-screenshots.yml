@@ -90,6 +90,10 @@ jobs:
           echo "Codex config:"; cat "$HOME/.codex/config.toml"
 
       - name: Run the Codex browser agent
+        # A partial run (e.g. Codex usage limit hit mid-session) still leaves
+        # usable screenshots, so do not fail the job here; the Post step is the
+        # real gate (it errors only when there are zero images to send).
+        continue-on-error: true
         run: |
           PROMPT="$(cat .github/codex/screenshot-game.md)"
           # Append the target URL with the key in the (server-invisible) hash.
