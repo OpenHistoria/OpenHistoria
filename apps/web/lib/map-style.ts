@@ -1,9 +1,23 @@
 import type { ExpressionSpecification, StyleSpecification } from "maplibre-gl"
 
-import { WORLD_COUNTRIES } from "@workspace/engine"
-
 import { countryNameOrNull } from "@/lib/country-names"
 import type { Locale } from "@/lib/i18n"
+
+/**
+ * Every ISO 3166-1 alpha-2 code ICU recognizes, found by probing all 676
+ * two-letter combinations once. This spans dependencies and island
+ * territories (Wallis-et-Futuna, Îles Turques-et-Caïques, ...) that sit
+ * outside the sovereign-state roster, so their map labels still localize.
+ */
+const ALPHA2_CODES: readonly string[] = (() => {
+  const codes: string[] = []
+  for (let a = 65; a <= 90; a++) {
+    for (let b = 65; b <= 90; b++) {
+      codes.push(String.fromCharCode(a, b))
+    }
+  }
+  return codes
+})()
 
 /**
  * City label text for a locale: prefer the locale's name, then English, then
@@ -30,7 +44,7 @@ export function cityLabelTextField(locale: Locale): ExpressionSpecification {
  */
 export function countryLabelTextField(locale: Locale): ExpressionSpecification {
   const cases: string[] = []
-  for (const { code } of WORLD_COUNTRIES) {
+  for (const code of ALPHA2_CODES) {
     const name = countryNameOrNull(code, locale)
     if (name) cases.push(code, name)
   }
@@ -50,7 +64,7 @@ export function countryLabelTextField(locale: Locale): ExpressionSpecification {
  *   Natural Earth 10m data (see public/map/world.pmtiles).
  * - Globe projection at low zoom, transitions to mercator as you zoom in.
  */
-export const mapStyle: StyleSpecification = {
+const baseStyle: StyleSpecification = {
   version: 8,
   projection: { type: "globe" },
   sky: {
@@ -343,3 +357,45 @@ export const mapStyle: StyleSpecification = {
     },
   ],
 }
+
+/**
+ * GADM subdivisions (regions.pmtiles, ~113MB) are both license-restricted
+ * (GADM forbids redistribution) and too large for static hosts like Vercel,
+ * so they are not deployed. The layer is enabled only when a tiles URL is
+ * available: it defaults to the bundled local file for development. In
+ * production NEXT_PUBLIC_MAP_REGIONS_URL is set to "off" to disable it; set
+ * it to a hosted .pmtiles URL (a host that allows large files) to turn it on.
+ */
+const REGIONS_TILES_URL =
+  process.env.NEXT_PUBLIC_MAP_REGIONS_URL ?? "/map/regions.pmtiles"
+const regionsEnabled =
+  REGIONS_TILES_URL.length > 0 && REGIONS_TILES_URL !== "off"
+
+function buildStyle(): StyleSpecification {
+  if (regionsEnabled) {
+    return {
+      ...baseStyle,
+      sources: {
+        ...baseStyle.sources,
+        regions: {
+          type: "vector",
+          url: `pmtiles://${REGIONS_TILES_URL}`,
+          promoteId: { regions: "gid" },
+        },
+      },
+    }
+  }
+  // Drop the regions source and every layer that reads from it, so nothing
+  // requests the undeployed tiles.
+  return {
+    ...baseStyle,
+    sources: Object.fromEntries(
+      Object.entries(baseStyle.sources).filter(([id]) => id !== "regions")
+    ),
+    layers: baseStyle.layers.filter(
+      (layer) => !("source" in layer && layer.source === "regions")
+    ),
+  }
+}
+
+export const mapStyle: StyleSpecification = buildStyle()
