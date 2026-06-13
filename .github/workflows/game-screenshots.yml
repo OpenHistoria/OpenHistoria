@@ -76,10 +76,12 @@ jobs:
           # written to the output dir below.
           [mcp_servers.playwright]
           command = "npx"
+          # Use the Google Chrome preinstalled on the runner (the "chrome"
+          # channel), avoiding a Playwright-bundled-chromium version mismatch.
           args = [
             "-y", "@playwright/mcp@latest",
             "--headless", "--isolated", "--no-sandbox",
-            "--browser", "chromium",
+            "--browser", "chrome",
             "--viewport-size", "1280,800",
             "--output-dir", "$SHOTS_DIR",
           ]
