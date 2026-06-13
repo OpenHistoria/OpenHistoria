@@ -27,6 +27,25 @@ bun run build:map-data --force    # rebuilds everything
 
 The first regions build downloads ~2.7 GB from GADM (cached in `~/.cache/openhistoria`).
 
+### Supabase (optional)
+
+Games are stored in the browser's localStorage by default. With Supabase configured, they are stored in Postgres instead: players get an anonymous guest session automatically, can later attach an email to turn it into a real account (keeping all their games), and every AI message is timestamped in the database.
+
+To self-host the relevant parts locally (Postgres + Auth + REST API, requires Docker):
+
+```sh
+bun run supabase:start    # boots the stack and applies supabase/migrations
+```
+
+Then copy the printed `API URL` and `anon key` into `apps/web/.env.local` (see `apps/web/.env.example`):
+
+```sh
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from supabase start>
+```
+
+Useful endpoints while developing: Studio at http://127.0.0.1:54323 to inspect tables, and the mail catcher at http://127.0.0.1:54324 where account-upgrade confirmation emails land. `bun run supabase:reset` reapplies migrations from scratch; `bun run supabase:stop` shuts the stack down.
+
 ## License
 
 [AGPL v3.0](./LICENSE)

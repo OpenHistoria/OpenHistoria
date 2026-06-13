@@ -56,6 +56,21 @@ export interface Messages {
     globe: string
     flat: string
   }
+  newGame: {
+    buttonLabel: string
+    title: string
+    description: string
+    searchPlaceholder: string
+    noMatch: (query: string) => string
+    selectedLabel: string
+    startYearLabel: string
+    startYearHint: (min: number, max: number) => string
+    cancel: string
+    start: string
+    starting: string
+    createFailedTitle: string
+    createFailed: string
+  }
   openrouter: {
     titleConnect: string
     titleConnected: string
@@ -113,6 +128,24 @@ const en: Messages = {
   map: {
     globe: "Globe",
     flat: "Flat",
+  },
+  newGame: {
+    buttonLabel: "New game",
+    title: "Start a new game",
+    description:
+      "Choose any country in the world and the year history diverges. You take charge from there.",
+    searchPlaceholder: "Search countries...",
+    noMatch: (query) => `No country matches "${query}".`,
+    selectedLabel: "selected",
+    startYearLabel: "Start year",
+    startYearHint: (min, max) =>
+      `Anywhere from ${min} to ${max}. The simulation runs from your start year to today.`,
+    cancel: "Cancel",
+    start: "Start game",
+    starting: "Creating world...",
+    createFailedTitle: "Could not start the game",
+    createFailed:
+      "The game could not be saved in this browser. Check that storage is allowed and try again.",
   },
   openrouter: {
     titleConnect: "Connect your OpenRouter account",
@@ -196,6 +229,24 @@ const fr: Messages = {
   map: {
     globe: "Globe",
     flat: "Plat",
+  },
+  newGame: {
+    buttonLabel: "Nouvelle partie",
+    title: "Commencer une nouvelle partie",
+    description:
+      "Choisissez n'importe quel pays du monde et l'année où l'histoire diverge. Vous prenez les commandes à partir de là.",
+    searchPlaceholder: "Rechercher un pays...",
+    noMatch: (query) => `Aucun pays ne correspond à « ${query} ».`,
+    selectedLabel: "sélectionné",
+    startYearLabel: "Année de départ",
+    startYearHint: (min, max) =>
+      `De ${min} à ${max}. La simulation court de votre année de départ à aujourd'hui.`,
+    cancel: "Annuler",
+    start: "Lancer la partie",
+    starting: "Création du monde...",
+    createFailedTitle: "Impossible de lancer la partie",
+    createFailed:
+      "La partie n'a pas pu être enregistrée dans ce navigateur. Vérifiez que le stockage est autorisé et réessayez.",
   },
   openrouter: {
     titleConnect: "Connectez votre compte OpenRouter",
