@@ -101,9 +101,16 @@ jobs:
             --skip-git-repo-check \
             "$PROMPT"
 
-      - name: List captured screenshots
+      - name: Locate captured screenshots
         if: always()
-        run: ls -la "$SHOTS_DIR" || true
+        run: |
+          echo "== SHOTS_DIR ($SHOTS_DIR) =="; ls -la "$SHOTS_DIR" || true
+          echo "== recent *.png anywhere (excluding repo assets/deps) =="
+          find "$GITHUB_WORKSPACE" "$HOME" -name '*.png' -newermt '-25 min' 2>/dev/null \
+            | grep -vE 'node_modules|/\.git/|\.next|apps/web/public' | head -50 || true
+          echo "== recent *.jpeg/*.jpg anywhere =="
+          find "$GITHUB_WORKSPACE" "$HOME" \( -name '*.jpg' -o -name '*.jpeg' \) -newermt '-25 min' 2>/dev/null \
+            | grep -vE 'node_modules|/\.git/|\.next|apps/web/public' | head -50 || true
 
       - name: Post screenshots to Discord
         if: always()
