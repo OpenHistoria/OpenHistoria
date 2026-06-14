@@ -1,13 +1,21 @@
 import { Result, TaggedError } from "better-result"
 
 /**
- * Minimal OpenRouter chat-completions client. The app already handles the
- * PKCE flow and key storage (apps/web/lib/openrouter.ts); this module only
- * spends the resulting key. Structured outputs (json_schema) are used so
- * turn results come back as validated JSON instead of free text.
+ * Minimal chat-completions client speaking the OpenAI-compatible API. By
+ * default it targets OpenRouter (the app handles the PKCE flow and key storage
+ * in apps/web/lib/openrouter.ts; this module only spends the resulting key),
+ * but `baseUrl` can point it at any OpenAI-compatible endpoint - a local
+ * Ollama, a LiteLLM proxy, vLLM, etc. - so OpenRouter can be overridden
+ * entirely. Structured outputs (json_schema) are used so turn results come
+ * back as validated JSON instead of free text.
  */
 
-const COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+/** OpenAI-compatible API root used when no override is supplied. */
+export const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+
+/** Builds the chat-completions endpoint from an API root, trimming slashes. */
+const completionsUrl = (baseUrl: string) =>
+  `${baseUrl.replace(/\/+$/, "")}/chat/completions`
 
 /** Reasonable default; games can override via EngineConfig.model. */
 export const DEFAULT_MODEL = "google/gemini-2.5-flash"
@@ -36,7 +44,13 @@ export interface CompletionMessage {
 }
 
 export interface CompletionRequest {
+  /** Bearer token. May be empty for keyless local endpoints (e.g. Ollama). */
   apiKey: string
+  /**
+   * OpenAI-compatible API root (without the trailing /chat/completions).
+   * Defaults to OpenRouter; set to a local provider to override it.
+   */
+  baseUrl?: string
   model: string
   messages: CompletionMessage[]
   /** JSON schema for structured outputs; omit for free-form text. */
@@ -106,15 +120,20 @@ export const requestCompletion = async (
     }),
   })
 
+  const url = completionsUrl(request.baseUrl ?? DEFAULT_BASE_URL)
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  }
+  // Keyless local endpoints (e.g. Ollama) reject a bare "Bearer "; only send
+  // the auth header when there is actually a key to send.
+  if (request.apiKey) headers.Authorization = `Bearer ${request.apiKey}`
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let response: Response
     try {
-      response = await fetch(COMPLETIONS_URL, {
+      response = await fetch(url, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${request.apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body,
       })
     } catch {
