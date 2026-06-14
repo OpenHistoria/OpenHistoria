@@ -187,8 +187,37 @@ export interface Messages {
     nextEventLabel: string
     eventProgress: string
     eventCountries: string
+    jumpTitle: string
+    jumpHint: string
+    jumpWeek: string
+    jumpMonth: string
+    jump3Months: string
+    jump6Months: string
+    jumpYear: string
+    jumpNextEvent: string
+    jumpNextEventHint: string
+    jumping: string
+    reportTitle: string
+    reportNext: string
+    reportDone: string
+    reportEmpty: string
+    reportProgress: (index: number, total: number) => string
     decisionBadge: string
     decisionDismiss: string
+    conseiller: {
+      title: string
+      open: string
+      placeholder: string
+      send: string
+      thinking: string
+      intro: string
+      suggestedLabel: string
+      addAction: string
+      added: string
+      error: string
+      you: string
+      reset: string
+    }
     directivesTitle: string
     directivesHint: string
     directivesPlaceholder: string
@@ -259,12 +288,12 @@ const en: Messages = {
       `You take the helm of ${country}. Choose where history begins.`,
     howItWorks: [
       {
-        title: "Advance time, one year at a time",
-        body: "Each turn the AI simulates a year: it narrates what unfolds and emits concrete events across the world.",
+        title: "Jump forward at your pace",
+        body: "Time is frozen until you act. Queue your directives, then jump a week, a year, or straight to the next major event, and the AI simulates the world's response.",
       },
       {
-        title: "Steer with directives",
-        body: "Before each year you can issue directives in plain language. The simulation weighs them as it plays the period out.",
+        title: "Steer with directives and your advisor",
+        body: "Issue orders in plain language, or consult your advisor for counsel. The simulation weighs your directives as it plays the period out.",
       },
       {
         title: "Bring your own AI",
@@ -373,10 +402,40 @@ const en: Messages = {
     nextEventLabel: "Next",
     eventProgress: "Progress",
     eventCountries: "Countries involved",
+    jumpTitle: "Jump forward",
+    jumpHint: "Time is frozen until you advance it. Pick how far to jump.",
+    jumpWeek: "1 week",
+    jumpMonth: "1 month",
+    jump3Months: "3 months",
+    jump6Months: "6 months",
+    jumpYear: "1 year",
+    jumpNextEvent: "Next major event",
+    jumpNextEventHint: "Let the AI advance to the next turning point.",
+    jumping: "Simulating the world...",
+    reportTitle: "Dispatches",
+    reportNext: "Next",
+    reportDone: "Done",
+    reportEmpty: "A quiet stretch. Nothing of note reaches your desk.",
+    reportProgress: (index, total) => `${index} / ${total}`,
     decisionBadge: "Decision",
     decisionDismiss: "Decide later",
+    conseiller: {
+      title: "Advisor",
+      open: "Consult your advisor",
+      placeholder: "Ask your advisor for counsel...",
+      send: "Send",
+      thinking: "Consulting...",
+      intro:
+        "Your advisor has the full picture of the world and your nation. Ask for counsel on the road ahead.",
+      suggestedLabel: "Suggested directives",
+      addAction: "Add to directives",
+      added: "Added",
+      error: "Your advisor could not respond. Try again.",
+      you: "You",
+      reset: "New conversation",
+    },
     directivesTitle: "Directives",
-    directivesHint: "These orders steer the next month you simulate. Add as many as you like.",
+    directivesHint: "These orders steer your nation on the next jump forward. Add as many as you like.",
     directivesPlaceholder: "Add an order, then press Enter...",
     directivesAdd: "Add",
     directivesEmpty: "No directives yet.",
@@ -384,8 +443,8 @@ const en: Messages = {
     directivesPickLocation: "Pick a location on the map (optional)",
     directivesPicking: "Click the map to set this directive's location...",
     directivesClearLocation: "Clear location",
-    narrationHeading: "This month",
-    emptyFeed: "No events yet. Advance time to set history in motion.",
+    narrationHeading: "Latest briefing",
+    emptyFeed: "No events yet. Jump forward to set history in motion.",
     turnFailedTitle: "Could not advance the year",
     kinds: {
       political: "Political",
@@ -487,12 +546,12 @@ const fr: Messages = {
       `Vous prenez la tête de ${country}. Choisissez le point de départ de l'histoire.`,
     howItWorks: [
       {
-        title: "Avancez le temps, année par année",
-        body: "À chaque tour, l'IA simule une année : elle raconte ce qui se passe et génère des événements concrets à travers le monde.",
+        title: "Avancez à votre rythme",
+        body: "Le temps est figé jusqu'à ce que vous agissiez. Préparez vos directives, puis avancez d'une semaine, d'un an, ou jusqu'au prochain événement majeur : l'IA simule la réaction du monde.",
       },
       {
-        title: "Orientez avec des directives",
-        body: "Avant chaque année, vous pouvez donner des directives en langage naturel. La simulation en tient compte pour dérouler la période.",
+        title: "Orientez avec directives et conseiller",
+        body: "Donnez des ordres en langage naturel, ou consultez votre conseiller. La simulation tient compte de vos directives pour dérouler la période.",
       },
       {
         title: "Utilisez votre propre IA",
@@ -604,10 +663,40 @@ const fr: Messages = {
     nextEventLabel: "À venir",
     eventProgress: "Avancement",
     eventCountries: "Pays impliqués",
+    jumpTitle: "Avancer le temps",
+    jumpHint: "Le temps est figé jusqu'à ce que vous l'avanciez. Choisissez la durée du saut.",
+    jumpWeek: "1 semaine",
+    jumpMonth: "1 mois",
+    jump3Months: "3 mois",
+    jump6Months: "6 mois",
+    jumpYear: "1 an",
+    jumpNextEvent: "Prochain événement majeur",
+    jumpNextEventHint: "Laissez l'IA avancer jusqu'au prochain tournant.",
+    jumping: "Simulation du monde...",
+    reportTitle: "Dépêches",
+    reportNext: "Suivant",
+    reportDone: "Terminer",
+    reportEmpty: "Une période calme. Rien de notable n'arrive sur votre bureau.",
+    reportProgress: (index, total) => `${index} / ${total}`,
     decisionBadge: "Décision",
     decisionDismiss: "Décider plus tard",
+    conseiller: {
+      title: "Conseiller",
+      open: "Consulter votre conseiller",
+      placeholder: "Demandez conseil à votre conseiller...",
+      send: "Envoyer",
+      thinking: "Consultation...",
+      intro:
+        "Votre conseiller a une vue d'ensemble du monde et de votre nation. Demandez-lui conseil sur la suite.",
+      suggestedLabel: "Directives suggérées",
+      addAction: "Ajouter aux directives",
+      added: "Ajoutée",
+      error: "Votre conseiller n'a pas pu répondre. Réessayez.",
+      you: "Vous",
+      reset: "Nouvelle conversation",
+    },
     directivesTitle: "Directives",
-    directivesHint: "Ces ordres orientent le mois suivant. Ajoutez-en autant que vous voulez.",
+    directivesHint: "Ces ordres orientent votre nation au prochain saut dans le temps. Ajoutez-en autant que vous voulez.",
     directivesPlaceholder: "Ajoutez un ordre, puis Entrée...",
     directivesAdd: "Ajouter",
     directivesEmpty: "Aucune directive.",
@@ -615,7 +704,7 @@ const fr: Messages = {
     directivesPickLocation: "Choisir un lieu sur la carte (facultatif)",
     directivesPicking: "Cliquez sur la carte pour situer cette directive...",
     directivesClearLocation: "Effacer le lieu",
-    narrationHeading: "Ce mois-ci",
+    narrationHeading: "Dernier briefing",
     emptyFeed:
       "Aucun événement pour l'instant. Avancez le temps pour lancer l'histoire.",
     turnFailedTitle: "Impossible d'avancer dans le temps",

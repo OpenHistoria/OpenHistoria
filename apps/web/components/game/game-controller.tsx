@@ -3,19 +3,26 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Menu01Icon, News01Icon, Settings01Icon } from "@hugeicons/core-free-icons"
+import {
+  Menu01Icon,
+  News01Icon,
+  Settings01Icon,
+  UserShield01Icon,
+} from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 
 import type { Game } from "@workspace/engine"
 
 import { BriefingPanel } from "@/components/game/briefing-panel"
+import { ConseillerPanel } from "@/components/game/conseiller-panel"
 import { DecisionPanel } from "@/components/game/decision-panel"
 import { DirectivesPanel } from "@/components/game/directives-panel"
 import { EventMarkers } from "@/components/game/event-markers"
 import { EventPanel } from "@/components/game/event-panel"
+import { EventReport } from "@/components/game/event-report"
 import { GameSessionProvider } from "@/components/game/game-session"
+import { JumpControls } from "@/components/game/jump-controls"
 import { PauseMenu } from "@/components/game/pause-menu"
-import { TimeControls } from "@/components/game/time-controls"
 import { SettingsMenu } from "@/components/settings/settings-menu"
 import {
   Tooltip,
@@ -41,6 +48,8 @@ export function GameController() {
   const [briefingPos, setBriefingPos] = useState({ x: 16, y: 96 })
   const [directivesOpen, setDirectivesOpen] = useState(false)
   const [directivesPos, setDirectivesPos] = useState({ x: 24, y: 120 })
+  const [conseillerOpen, setConseillerOpen] = useState(false)
+  const [conseillerPos, setConseillerPos] = useState({ x: 24, y: 120 })
 
   useEffect(() => {
     let active = true
@@ -76,17 +85,26 @@ export function GameController() {
     setBriefingOpen(true)
   }
 
-  // Open the directives panel centered on screen; toggle closed otherwise.
-  const toggleDirectives = () => {
-    if (!directivesOpen) {
-      const width = 460
-      setDirectivesPos({
+  // Open a center-screen panel of the given width; toggle closed otherwise.
+  const toggleCentered = (
+    open: boolean,
+    setOpen: (fn: (v: boolean) => boolean) => void,
+    setPos: (pos: { x: number; y: number }) => void,
+    width: number
+  ) => {
+    if (!open) {
+      setPos({
         x: Math.max(8, Math.round((window.innerWidth - width) / 2)),
         y: Math.max(8, Math.round(window.innerHeight / 2 - 240)),
       })
     }
-    setDirectivesOpen((v) => !v)
+    setOpen((v) => !v)
   }
+
+  const toggleDirectives = () =>
+    toggleCentered(directivesOpen, setDirectivesOpen, setDirectivesPos, 460)
+  const toggleConseiller = () =>
+    toggleCentered(conseillerOpen, setConseillerOpen, setConseillerPos, 420)
 
   return (
     <>
@@ -125,14 +143,36 @@ export function GameController() {
           <EventMarkers />
           <EventPanel />
           <DecisionPanel />
+          <EventReport />
 
-          {/* Time deck: bottom-left (shows the played country's flag). */}
+          {/* Jump deck: bottom-left (shows the played country's flag). */}
           <div className="fixed bottom-4 left-4 z-[1100]">
-            <TimeControls />
+            <JumpControls />
           </div>
 
-          {/* Directives launcher: archive's actions icon, bottom-right. */}
-          <div className="fixed right-4 bottom-4 z-[1100]">
+          {/* Launchers, bottom-right: consult the advisor, and directives. */}
+          <div className="fixed right-4 bottom-4 z-[1100] flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    onClick={toggleConseiller}
+                    aria-label={t.game.conseiller.title}
+                    aria-pressed={conseillerOpen}
+                    className="flex size-12 cursor-pointer items-center justify-center rounded-full border border-border bg-background/70 text-foreground backdrop-blur-sm transition-transform hover:scale-105 active:translate-y-px"
+                  />
+                }
+              >
+                <HugeiconsIcon
+                  icon={UserShield01Icon}
+                  strokeWidth={2}
+                  className="size-5"
+                />
+              </TooltipTrigger>
+              <TooltipContent side="top">{t.game.conseiller.title}</TooltipContent>
+            </Tooltip>
+
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -162,6 +202,12 @@ export function GameController() {
             onClose={() => setDirectivesOpen(false)}
             position={directivesPos}
             onPositionChange={setDirectivesPos}
+          />
+          <ConseillerPanel
+            open={conseillerOpen}
+            onClose={() => setConseillerOpen(false)}
+            position={conseillerPos}
+            onPositionChange={setConseillerPos}
           />
           <BriefingPanel
             open={briefingOpen}

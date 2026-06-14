@@ -7,14 +7,21 @@ import {
   type CompletionError,
   type CompletionMessage,
 } from "@workspace/engine/openrouter"
-import { buildSystemPrompt, buildTurnPrompt } from "@workspace/engine/prompts"
+import {
+  buildAdvisorPrompt,
+  buildSystemPrompt,
+  buildTurnPrompt,
+} from "@workspace/engine/prompts"
 import type { GameStore, GameStoreError } from "@workspace/engine/store"
 import {
+  addDays,
   addMonths,
+  AdvisorOutputSchema,
   clampDay,
   compareGameDates,
   toTimeline,
   TurnOutputSchema,
+  type AdvisorOutput,
   type ChatMessage,
   type Game,
   type GameDate,
@@ -45,6 +52,11 @@ export class InvalidStartYearError extends TaggedError("InvalidStartYear")<{
 export class InvalidTurnOutputError extends TaggedError("InvalidTurnOutput")<{
   raw: string
 }>() {}
+
+/** The advisor replied, but not with valid JSON (reply + suggestedActions). */
+export class InvalidAdvisorOutputError extends TaggedError(
+  "InvalidAdvisorOutput"
+)<{ raw: string }>() {}
 
 /** A save file did not match the expected snapshot shape. */
 export class InvalidSnapshotError extends TaggedError("InvalidSnapshot")() {}
@@ -84,11 +96,54 @@ export type AdvanceTimeError =
   | CompletionError
   | GameStoreError
 
+export type ConsultAdvisorError =
+  | GameNotFoundError
+  | MissingApiKeyError
+  | InvalidAdvisorOutputError
+  | CompletionError
+  | GameStoreError
+
+/** A single exchange in the conseiller conversation, oldest first. */
+export interface AdvisorTurn {
+  role: "user" | "assistant"
+  content: string
+}
+
+export interface ConsultAdvisorInput {
+  /** Prior advisor conversation this session, oldest first. */
+  history: AdvisorTurn[]
+  /** The player's new question or instruction to the advisor. */
+  message: string
+  /** Directives the player has queued but not yet jumped on, for context. */
+  directives?: string[]
+  /** Fallback models OpenRouter routes to if the model errors/limits. */
+  fallbackModels?: string[]
+  /** Concrete model to use instead of the game's stored model. */
+  modelOverride?: string
+}
+
+export interface AdvisorReply {
+  /** The advisor's prose answer. */
+  reply: string
+  /** Ready-to-issue directives the player can add to their queue. */
+  suggestedActions: string[]
+}
+
+/** How many recent events the advisor is given as situational context. */
+const ADVISOR_EVENT_CONTEXT = 14
+
 export interface EngineConfig {
   store: GameStore
   /** Returns the player's OpenRouter key, or null when disconnected. */
   getApiKey: () => string | null
-  /** OpenRouter model id used for new games. */
+  /**
+   * Optional OpenAI-compatible API root to use instead of OpenRouter (e.g. a
+   * local Ollama or LiteLLM endpoint). Returns null to use OpenRouter. When a
+   * base URL is set, turns run even without an API key (local endpoints are
+   * often keyless).
+   */
+  getBaseUrl?: () => string | null
+  /** Model id used for new games. */
   model?: string
   /** Latest year a game may START in; defaults to the current real-world year. */
   maxYear?: number
@@ -135,9 +190,22 @@ export const DEFAULT_LANGUAGE = "English"
  */
 export const ROTATE_FREE_MODELS = "auto:rotate-free"
 
+/**
+ * How far a Jump Forward advances the clock. A fixed span of whole days or
+ * months, or "auto": advance to the next major development, letting the model
+ * pick the stop date within AUTO_JUMP_MAX_MONTHS.
+ */
+export type JumpSpan =
+  | { kind: "days"; days: number }
+  | { kind: "months"; months: number }
+  | { kind: "auto" }
+
+/** Furthest an auto ("next major event") jump may advance the clock. */
+export const AUTO_JUMP_MAX_MONTHS = 24
+
 export interface AdvanceTimeOptions {
-  /** How far the clock jumps this turn. Defaults to MONTHS_PER_TURN. */
-  months?: number
+  /** How far this jump advances. Defaults to one month. */
+  jump?: JumpSpan
   /** Player directives for the period, in natural language. */
   playerAction?: string
   /** Fallback models OpenRouter routes to if the game's model errors/limits. */
@@ -159,6 +227,7 @@ const newId = () => crypto.randomUUID()
 export class Engine {
   private readonly store: GameStore
   private readonly getApiKey: () => string | null
+  private readonly getBaseUrl: () => string | null
   private readonly model: string
   /** Latest year a game may start in. */
   readonly maxYear: number
@@ -170,6 +239,7 @@ export class Engine {
   constructor(config: EngineConfig) {
     this.store = config.store
     this.getApiKey = config.getApiKey
+    this.getBaseUrl = config.getBaseUrl ?? (() => null)
     this.model = config.model ?? DEFAULT_MODEL
     this.maxYear = config.maxYear ?? new Date().getFullYear()
     this.minYear = config.minYear ?? 1800
@@ -292,10 +362,11 @@ export class Engine {
   }
 
   /**
-   * Runs one turn: advances the clock by `months` (clamped to the game's end
-   * year), hands the model the period, any scheduled events that came due,
-   * and the player's directives, then persists the narration, events, and
-   * newly scheduled events it returns.
+   * Runs one Jump Forward: advances the clock by the requested span (or, for
+   * an auto jump, to the next major development the model picks), hands the
+   * model the period, any scheduled events that came due, and the player's
+   * directives, then persists the narration, events, and newly scheduled
+   * events it returns.
    */
   async advanceTime(
     gameId: string,
@@ -309,22 +380,30 @@ export class Engine {
       return Result.err(new GameCompletedError({ gameId }))
     }
 
+    const baseUrl = this.getBaseUrl() ?? undefined
     const apiKey = this.getApiKey()
-    if (!apiKey) {
+    // A custom (local) base URL may be keyless; only OpenRouter needs a key.
+    if (!apiKey && !baseUrl) {
       return Result.err(new MissingApiKeyError())
     }
 
-    // Games are open-ended: time just keeps moving forward, no end year.
-    const months = Math.max(1, Math.floor(options.months ?? MONTHS_PER_TURN))
-    const target = addMonths(game.currentDate, months)
+    // Games are open-ended: time just keeps moving forward, no end year. A
+    // fixed jump lands on a known target; an auto jump passes a horizon (the
+    // furthest the model may go) and the model picks the real stop date.
+    const jump = options.jump ?? { kind: "months", months: MONTHS_PER_TURN }
+    const auto = jump.kind === "auto"
+    const horizon =
+      jump.kind === "days"
+        ? clampDay(addDays(game.currentDate, Math.max(1, Math.floor(jump.days))))
+        : jump.kind === "months"
+          ? addMonths(game.currentDate, Math.max(1, Math.floor(jump.months)))
+          : addMonths(game.currentDate, AUTO_JUMP_MAX_MONTHS)
 
     const scheduled = await this.store.listScheduled(gameId)
     if (scheduled.isErr()) return Result.err(scheduled.error)
+    // Up to the horizon, the scheduled events the model may resolve this jump.
     const due = scheduled.value.filter(
-      (event) => compareGameDates(event.dueDate, target) <= 0
-    )
-    const stillPending = scheduled.value.filter(
-      (event) => compareGameDates(event.dueDate, target) > 0
+      (event) => compareGameDates(event.dueDate, horizon) <= 0
     )
 
     const history = await this.store.listMessages(gameId)
@@ -332,12 +411,14 @@ export class Engine {
 
     const turnPrompt = buildTurnPrompt({
       game,
-      target,
+      target: horizon,
       due,
       playerAction: options.playerAction,
+      auto,
     })
     const completion = await requestCompletion({
-      apiKey,
+      apiKey: apiKey ?? "",
+      baseUrl,
       model: options.modelOverride ?? game.model,
       fallbackModels: options.fallbackModels,
       maxTokens: this.maxOutputTokens,
@@ -359,8 +440,29 @@ export class Engine {
     if (parsed.isErr()) return Result.err(parsed.error)
     const turn = parsed.value
 
+    // On an auto jump the model chooses where to stop; honor it when it lands
+    // strictly after the current date and no later than the horizon, otherwise
+    // fall back to the horizon. A fixed jump always lands on the horizon.
+    let target = horizon
+    if (auto && turn.advancedTo) {
+      const stop = clampDay(turn.advancedTo)
+      if (
+        compareGameDates(stop, game.currentDate) > 0 &&
+        compareGameDates(stop, horizon) <= 0
+      ) {
+        target = stop
+      }
+    }
+
+    // Scheduled events past where we actually stopped stay pending.
+    const stillPending = scheduled.value.filter(
+      (event) => compareGameDates(event.dueDate, target) > 0
+    )
+
     const now = Date.now()
-    const dueIds = new Set(due.map((event) => event.id))
+    const resolvedDue = due.filter(
+      (event) => compareGameDates(event.dueDate, target) <= 0
+    )
     const events: GameEvent[] = turn.events.map((event) => {
       const date = this.clampDate(
         clampDay({ year: event.year, month: event.month, day: event.day }),
@@ -384,10 +486,9 @@ export class Engine {
         countries: event.countries.map((code) => code.toUpperCase()),
         location: event.location,
         importance: event.importance,
-        source:
-          dueIds.size > 0 && due.some((d) => d.title === event.title)
-            ? "scheduled"
-            : "model",
+        source: resolvedDue.some((d) => d.title === event.title)
+          ? "scheduled"
+          : "model",
       }
     })
 
@@ -460,6 +561,79 @@ export class Engine {
             })),
           }
         : null,
+    })
+  }
+
+  /**
+   * Consults the conseiller: the player's strategic advisor. Builds the advice
+   * prompt from the live game state (country, date, recent events, looming
+   * scheduled developments, queued directives), continues the advisor
+   * conversation, and returns prose advice plus any directives it proposes.
+   *
+   * The advisor conversation is not persisted to the game's turn log (it would
+   * pollute the simulation context); callers hold it for the session.
+   */
+  async consultAdvisor(
+    gameId: string,
+    input: ConsultAdvisorInput
+  ): Promise<Result<AdvisorReply, ConsultAdvisorError>> {
+    const loaded = await this.getGame(gameId)
+    if (loaded.isErr()) return Result.err(loaded.error)
+    const game = loaded.value
+
+    const baseUrl = this.getBaseUrl() ?? undefined
+    const apiKey = this.getApiKey()
+    if (!apiKey && !baseUrl) {
+      return Result.err(new MissingApiKeyError())
+    }
+
+    const timeline = await this.store.listEvents(gameId)
+    if (timeline.isErr()) return Result.err(timeline.error)
+    const recentEvents = toTimeline(timeline.value).slice(-ADVISOR_EVENT_CONTEXT)
+
+    const scheduled = await this.store.listScheduled(gameId)
+    if (scheduled.isErr()) return Result.err(scheduled.error)
+    const looming = [...scheduled.value].sort((a, b) =>
+      compareGameDates(a.dueDate, b.dueDate)
+    )
+
+    const system = buildAdvisorPrompt({
+      game,
+      recentEvents,
+      scheduled: looming,
+      directives: input.directives ?? [],
+    })
+
+    const messages: CompletionMessage[] = [
+      { role: "system", content: system },
+      ...input.history.map((m) => ({ role: m.role, content: m.content })),
+      { role: "user", content: input.message },
+    ]
+
+    const completion = await requestCompletion({
+      apiKey: apiKey ?? "",
+      baseUrl,
+      model: input.modelOverride ?? game.model,
+      fallbackModels: input.fallbackModels,
+      maxTokens: this.maxOutputTokens,
+      messages,
+      schema: {
+        name: "advice",
+        schema: z.toJSONSchema(AdvisorOutputSchema) as Record<string, unknown>,
+      },
+    })
+    if (completion.isErr()) return Result.err(completion.error)
+
+    const parsed = Result.try({
+      try: () =>
+        AdvisorOutputSchema.parse(JSON.parse(completion.value)) as AdvisorOutput,
+      catch: () => new InvalidAdvisorOutputError({ raw: completion.value }),
+    })
+    if (parsed.isErr()) return Result.err(parsed.error)
+
+    return Result.ok({
+      reply: parsed.value.reply,
+      suggestedActions: parsed.value.suggestedActions,
     })
   }
 

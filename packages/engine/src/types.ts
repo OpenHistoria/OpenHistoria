@@ -243,6 +243,19 @@ export const TurnOutputSchema = z.strictObject({
   /** Future events to queue; resolved when the clock reaches them. */
   scheduledEvents: z.array(ModelScheduledEventSchema),
   /**
+   * The calendar day the period advanced to. Only meaningful on an open-ended
+   * "jump to the next major development" turn, where the model decides how far
+   * to advance; on a fixed-span jump the engine sets the date and ignores this.
+   * Null when the model did not pick one.
+   */
+  advancedTo: z
+    .strictObject({
+      year: z.number().int(),
+      month: z.number().int().min(1).max(12),
+      day: z.number().int().min(1).max(31),
+    })
+    .nullable(),
+  /**
    * A choice for the player when the nation faces a real fork this period;
    * null when nothing needs deciding. Raising one pauses the game.
    */
@@ -250,6 +263,24 @@ export const TurnOutputSchema = z.strictObject({
 })
 
 export type TurnOutput = z.infer<typeof TurnOutputSchema>
+
+/**
+ * What the conseiller (the player's strategic advisor) returns: prose advice
+ * plus optional ready-to-issue directives the player can add to their action
+ * queue with one click.
+ */
+export const AdvisorOutputSchema = z.strictObject({
+  /** The advisor's answer, addressed to the player, in the game's language. */
+  reply: z.string(),
+  /**
+   * Zero to three concrete directives, each phrased as an order the player
+   * could issue verbatim (imperative, specific). Empty when the player only
+   * asked for analysis.
+   */
+  suggestedActions: z.array(z.string()),
+})
+
+export type AdvisorOutput = z.infer<typeof AdvisorOutputSchema>
 
 /** What Engine.advanceTime returns after a successful turn. */
 export interface TurnResult {
