@@ -32,12 +32,13 @@ interface AdvisorMessage {
 }
 
 /**
- * The conseiller: a chat with the player's strategic advisor. It has the full
- * context of the current game (country, date, recent events, queued directives)
- * and can propose directives the player adds to their queue with one click.
- * Conversation lives for the session (per game), not persisted.
+ * The advisor panel: a chat with the player's strategic advisor (the
+ * conseiller). It has the full context of the current game (country, date,
+ * recent events, queued directives) and can propose directives the player adds
+ * to their queue with one click. Conversation lives for the session (per
+ * game), not persisted.
  */
-export function ConseillerPanel({
+export function AdvisorPanel({
   open,
   onClose,
   position,

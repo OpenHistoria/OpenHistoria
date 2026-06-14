@@ -13,8 +13,8 @@ import type { IconSvgElement } from "@hugeicons/react"
 
 import type { Game } from "@workspace/engine"
 
+import { AdvisorPanel } from "@/components/game/advisor-panel"
 import { BriefingPanel } from "@/components/game/briefing-panel"
-import { ConseillerPanel } from "@/components/game/conseiller-panel"
 import { DecisionPanel } from "@/components/game/decision-panel"
 import { DirectivesPanel } from "@/components/game/directives-panel"
 import { EventMarkers } from "@/components/game/event-markers"
@@ -203,7 +203,7 @@ export function GameController() {
             position={directivesPos}
             onPositionChange={setDirectivesPos}
           />
-          <ConseillerPanel
+          <AdvisorPanel
             open={conseillerOpen}
             onClose={() => setConseillerOpen(false)}
             position={conseillerPos}
