@@ -10,8 +10,9 @@ differ from your training data. Read the relevant guide in
 
 ## Commit Message Convention
 
-The `Post to X` GitHub Action reads the latest commit message to create the
-tweet. To set specific tweet copy, include a `Tweet:` block in the commit body:
+The `Post to X` GitHub Action only runs for pushes to `master`. It posts only
+when the latest commit message includes a `Tweet:` block. To set specific tweet
+copy, include the block in the commit body:
 
 ```text
 feat: add scenario editor
@@ -20,6 +21,5 @@ Tweet: The scenario editor is now live. Build alternate history timelines and
 share the turning points that shaped them.
 ```
 
-If there is no `Tweet:` block, the workflow uses the commit title. Keep the
-tweet text public-facing and short enough to fit on X with the commit URL
-appended.
+If there is no `Tweet:` block, the workflow skips posting. Keep the tweet text
+public-facing and short enough to fit on X with the commit URL appended.

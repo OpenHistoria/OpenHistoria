@@ -3,7 +3,6 @@ name: Post to X
 on:
   push:
     branches:
-      - main
       - master
 
 # Only one post run at a time; don't cancel an in-flight post.
@@ -20,8 +19,8 @@ jobs:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           ZERNIO_TWITTER_ACCOUNT_ID: ${{ secrets.ZERNIO_TWITTER_ACCOUNT_ID }}
           # Passed via env (not inline templating) to avoid shell injection.
-          # Convention: put a Tweet: block in the commit body to override the post.
-          # If absent, the workflow falls back to the commit subject.
+          # Convention: put a Tweet: block in the commit body to publish a post.
+          # If absent, this workflow skips posting.
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           COMMIT_URL: ${{ github.event.head_commit.url }}
         run: |
@@ -33,15 +32,12 @@ jobs:
             exit 0
           fi
 
-          SUBJECT="$(printf '%s' "$COMMIT_MESSAGE" | head -n1)"
           TWEET_TEXT="$(
             printf '%s' "$COMMIT_MESSAGE" | awk '
               BEGIN {
                 capture = 0
-                found = 0
               }
               /^Tweet:[[:space:]]*/ {
-                found = 1
                 capture = 1
                 sub(/^Tweet:[[:space:]]*/, "")
                 if (length($0) > 0) {
@@ -55,16 +51,12 @@ jobs:
               capture == 1 {
                 print
               }
-              END {
-                if (found == 0) {
-                  exit 1
-                }
-              }
-            ' || true
+            '
           )"
 
           if [ -z "$TWEET_TEXT" ]; then
-            TWEET_TEXT="$SUBJECT"
+            echo "No Tweet: block found in the commit message; skipping the X post."
+            exit 0
           fi
 
           # Keep room for the blank line and commit URL within X's 280-char limit.
