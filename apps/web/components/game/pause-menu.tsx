@@ -193,7 +193,11 @@ export function PauseMenu({
                 <p className="text-xs text-destructive">{importError}</p>
               )}
 
-              <Button variant="outline" onClick={() => setConfirmExit(true)}>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => setConfirmExit(true)}
+              >
                 <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} />
                 {t.menu.exitGame}
               </Button>
