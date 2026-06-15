@@ -1,0 +1,53 @@
+# Local Supabase stack for Open Historia (`bunx supabase start`).
+# Only the parts the game needs are enabled: Postgres + Auth + REST API,
+# Studio for inspection, and the local mail catcher for testing the
+# guest-to-real-account email flow.
+
+project_id = "openhistoria"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+# Local mail catcher: confirmation emails for guest account upgrades land
+# here (http://127.0.0.1:54324) instead of being sent for real.
+[inbucket]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+# Guest accounts: players get an anonymous session on first play and can
+# attach an email later to make it permanent.
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = false
+
+[edge_runtime]
+enabled = false
