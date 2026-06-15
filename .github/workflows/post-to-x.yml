@@ -20,6 +20,8 @@ jobs:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           ZERNIO_TWITTER_ACCOUNT_ID: ${{ secrets.ZERNIO_TWITTER_ACCOUNT_ID }}
           # Passed via env (not inline templating) to avoid shell injection.
+          # Convention: put a Tweet: block in the commit body to override the post.
+          # If absent, the workflow falls back to the commit subject.
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           COMMIT_URL: ${{ github.event.head_commit.url }}
         run: |
@@ -31,9 +33,49 @@ jobs:
             exit 0
           fi
 
-          # Use just the commit subject (first line) and keep within X's 280-char limit.
-          SUBJECT="$(printf '%s' "$COMMIT_MESSAGE" | head -n1 | cut -c1-200)"
-          CONTENT="${SUBJECT}"$'\n\n'"${COMMIT_URL}"
+          SUBJECT="$(printf '%s' "$COMMIT_MESSAGE" | head -n1)"
+          TWEET_TEXT="$(
+            printf '%s' "$COMMIT_MESSAGE" | awk '
+              BEGIN {
+                capture = 0
+                found = 0
+              }
+              /^Tweet:[[:space:]]*/ {
+                found = 1
+                capture = 1
+                sub(/^Tweet:[[:space:]]*/, "")
+                if (length($0) > 0) {
+                  print
+                }
+                next
+              }
+              capture == 1 && $0 == "" {
+                exit
+              }
+              capture == 1 {
+                print
+              }
+              END {
+                if (found == 0) {
+                  exit 1
+                }
+              }
+            ' || true
+          )"
+
+          if [ -z "$TWEET_TEXT" ]; then
+            TWEET_TEXT="$SUBJECT"
+          fi
+
+          # Keep room for the blank line and commit URL within X's 280-char limit.
+          MAX_TEXT_LENGTH=$((280 - 2 - ${#COMMIT_URL}))
+          if [ "$MAX_TEXT_LENGTH" -lt 1 ]; then
+            echo "::error::Commit URL is too long to fit in an X post."
+            exit 1
+          fi
+
+          TWEET_TEXT="$(printf '%s' "$TWEET_TEXT" | cut -c1-"$MAX_TEXT_LENGTH")"
+          CONTENT="${TWEET_TEXT}"$'\n\n'"${COMMIT_URL}"
 
           PAYLOAD="$(jq -n \
             --arg content "$CONTENT" \
