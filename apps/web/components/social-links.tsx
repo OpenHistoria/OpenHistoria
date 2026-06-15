@@ -1,8 +1,7 @@
 "use client"
 
-import { DiscordIcon, GithubIcon } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
-import type { IconSvgElement } from "@hugeicons/react"
+import { siDiscord, siGithub } from "simple-icons"
+import type { SimpleIcon } from "simple-icons"
 
 import {
   Tooltip,
@@ -14,12 +13,12 @@ const LINKS = [
   {
     label: "Discord",
     href: "https://discord.gg/7R9hAdMyve",
-    icon: DiscordIcon,
+    icon: siDiscord,
   },
   {
     label: "GitHub",
     href: "https://github.com/openhistoria/openhistoria",
-    icon: GithubIcon,
+    icon: siGithub,
   },
 ] as const
 
@@ -40,7 +39,7 @@ function SocialLink({
 }: {
   label: string
   href: string
-  icon: IconSvgElement
+  icon: SimpleIcon
 }) {
   return (
     <Tooltip>
@@ -55,9 +54,28 @@ function SocialLink({
           />
         }
       >
-        <HugeiconsIcon icon={icon} strokeWidth={2} className="size-4" />
+        <BrandIcon icon={icon} className="size-4" />
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent side="bottom">{label}</TooltipContent>
     </Tooltip>
+  )
+}
+
+function BrandIcon({
+  icon,
+  className,
+}: {
+  icon: SimpleIcon
+  className?: string
+}) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+    >
+      <path d={icon.path} />
+    </svg>
   )
 }
