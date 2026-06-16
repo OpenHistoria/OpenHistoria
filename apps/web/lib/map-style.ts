@@ -362,12 +362,10 @@ const baseStyle: StyleSpecification = {
  * GADM subdivisions (regions.pmtiles, ~113MB) are both license-restricted
  * (GADM forbids redistribution) and too large for static hosts like Vercel,
  * so they are not deployed. The layer is enabled only when a tiles URL is
- * available: it defaults to the bundled local file for development. In
- * production NEXT_PUBLIC_MAP_REGIONS_URL is set to "off" to disable it; set
- * it to a hosted .pmtiles URL (a host that allows large files) to turn it on.
+ * configured. Set NEXT_PUBLIC_MAP_REGIONS_URL to a hosted .pmtiles URL or to
+ * "/map/regions.pmtiles" after generating the local development file.
  */
-const REGIONS_TILES_URL =
-  process.env.NEXT_PUBLIC_MAP_REGIONS_URL ?? "/map/regions.pmtiles"
+const REGIONS_TILES_URL = process.env.NEXT_PUBLIC_MAP_REGIONS_URL ?? "off"
 const regionsEnabled =
   REGIONS_TILES_URL.length > 0 && REGIONS_TILES_URL !== "off"
 

@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Search01Icon } from "@hugeicons/core-free-icons"
 
 import { WORLD_COUNTRIES, type CountryListEntry } from "@workspace/engine"
+import { Input } from "@workspace/ui/components/input"
 import { cn } from "@workspace/ui/lib/utils"
 
 import { CountryFlag } from "@/components/country-flag"
@@ -50,15 +51,15 @@ export function CountryPicker({
         <HugeiconsIcon
           icon={Search01Icon}
           strokeWidth={2}
-          className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
         />
-        <input
+        <Input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t.newGame.searchPlaceholder}
           autoFocus
-          className="w-full rounded-md border border-border bg-background py-1.5 pr-2 pl-8 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          className="pl-8"
         />
       </div>
       <div className="max-h-56 overflow-y-auto rounded-md border border-border/60">
