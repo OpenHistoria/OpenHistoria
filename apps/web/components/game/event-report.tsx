@@ -15,7 +15,9 @@ import { Button } from "@workspace/ui/components/button"
 
 import { useGameSession, type JumpReport } from "@/components/game/game-session"
 import { EventArtwork } from "@/components/game/event-artwork"
+import { SpeechButton } from "@/components/game/speech-button"
 import { useI18n } from "@/hooks/use-i18n"
+import { eventSpeechText } from "@/lib/event-speech"
 import { formatGameDate } from "@/lib/format"
 
 /** Left border accent per event kind, matching the briefing feed. */
@@ -56,6 +58,9 @@ function ReportView({
   const total = 1 + report.events.length
   const onLast = step >= total - 1
   const event = step > 0 ? report.events[step - 1] : null
+  const speechText = event
+    ? eventSpeechText(event, locale, t)
+    : report.narration
 
   const advance = () => {
     if (onLast) onDone()
@@ -84,18 +89,21 @@ function ReportView({
               {formatGameDate(report.to, locale)}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onDone}
-            aria-label={t.common.close}
-            className="shrink-0 cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <HugeiconsIcon
-              icon={Cancel01Icon}
-              strokeWidth={2}
-              className="size-4"
-            />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <SpeechButton text={speechText} />
+            <button
+              type="button"
+              onClick={onDone}
+              aria-label={t.common.close}
+              className="cursor-pointer rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <HugeiconsIcon
+                icon={Cancel01Icon}
+                strokeWidth={2}
+                className="size-4"
+              />
+            </button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">

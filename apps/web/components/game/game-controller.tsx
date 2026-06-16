@@ -109,7 +109,6 @@ export function GameController() {
   return (
     <>
       <div className="flex items-center gap-2">
-        <NewGameHudButton onCreated={startGame} />
         {game ? (
           <>
             <HudIconButton
@@ -125,11 +124,14 @@ export function GameController() {
             />
           </>
         ) : (
-          <HudIconButton
-            icon={Settings01Icon}
-            label={t.menu.settings}
-            onClick={() => setSettingsOpen(true)}
-          />
+          <>
+            <NewGameHudButton onCreated={startGame} />
+            <HudIconButton
+              icon={Settings01Icon}
+              label={t.menu.settings}
+              onClick={() => setSettingsOpen(true)}
+            />
+          </>
         )}
       </div>
 

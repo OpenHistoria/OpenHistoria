@@ -8,11 +8,13 @@ import { Badge } from "@workspace/ui/components/badge"
 
 import { CountryFlag } from "@/components/country-flag"
 import { EventArtwork } from "@/components/game/event-artwork"
+import { SpeechButton } from "@/components/game/speech-button"
 import { KIND_COLOR } from "@/components/game/event-markers"
 import { useGameSession } from "@/components/game/game-session"
 import { FloatingPanel } from "@/components/hud/floating-panel"
 import { useI18n } from "@/hooks/use-i18n"
 import { localizedCountryName } from "@/lib/country-names"
+import { eventSpeechText } from "@/lib/event-speech"
 import { formatGameDate } from "@/lib/format"
 
 const PANEL_W = 360
@@ -96,6 +98,7 @@ function EventPanelInner({
       position={pos}
       onPositionChange={setPos}
       title={event.title}
+      headerExtra={<SpeechButton text={eventSpeechText(event, locale, t)} />}
       icon={
         <span
           className="block size-2.5 rounded-full"

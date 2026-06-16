@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
-import type { MapMouseEvent } from "maplibre-gl"
+import type { Map as MapLibreMap, MapMouseEvent, Point } from "maplibre-gl"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Cancel01Icon,
@@ -51,7 +51,11 @@ export function DirectivesPanel({
     removeDirective,
   } = useGameSession()
   const [draft, setDraft] = useState("")
-  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null)
+  const [coord, setCoord] = useState<{
+    lat: number
+    lng: number
+    place: string | null
+  } | null>(null)
   const [picking, setPicking] = useState(false)
 
   // While picking, the next map click sets this directive's location. Keep
@@ -64,7 +68,11 @@ export function DirectivesPanel({
     }
     forceCrosshair()
     const onClick = (e: MapMouseEvent) => {
-      setCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+      setCoord({
+        lat: e.lngLat.lat,
+        lng: e.lngLat.lng,
+        place: nearestPlaceName(map, e.point),
+      })
       setPicking(false)
     }
     map.on("mousemove", forceCrosshair)
@@ -77,9 +85,12 @@ export function DirectivesPanel({
   }, [picking, map])
 
   const submit = () => {
-    const suffix = coord
-      ? ` (near ${coord.lat.toFixed(3)}, ${coord.lng.toFixed(3)})`
-      : ""
+    // Prefer an approximate place name resolved from the map's labels; fall
+    // back to bare coordinates when nothing nameable sits near the click.
+    const label = coord
+      ? (coord.place ?? `${coord.lat.toFixed(3)}, ${coord.lng.toFixed(3)}`)
+      : null
+    const suffix = label ? ` (${t.game.directivesNear(label)})` : ""
     addDirective(draft + suffix)
     setDraft("")
     setCoord(null)
@@ -157,7 +168,7 @@ export function DirectivesPanel({
 
           {coord && (
             <span className="flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2.5 text-[11px] text-muted-foreground tabular-nums">
-              {coord.lat.toFixed(2)}, {coord.lng.toFixed(2)}
+              {coord.place ?? `${coord.lat.toFixed(2)}, ${coord.lng.toFixed(2)}`}
               <button
                 type="button"
                 onClick={() => setCoord(null)}
@@ -267,4 +278,43 @@ export function DirectivesPanel({
       )}
     </FloatingPanel>
   )
+}
+
+/**
+ * Best-effort reverse lookup of a place name for a clicked point. We can't
+ * geocode offline, so we read the labels MapLibre has already rendered (cities
+ * first, then regions) within a small box around the click and return the
+ * nearest one. Returns null when nothing nameable sits close enough, in which
+ * case the caller falls back to bare coordinates.
+ */
+function nearestPlaceName(map: MapLibreMap, point: Point): string | null {
+  const RADIUS = 140
+  const layers = ["city-labels", "city-dots", "region-labels"].filter((id) =>
+    map.getLayer(id)
+  )
+  if (layers.length === 0) return null
+
+  const features = map.queryRenderedFeatures(
+    [
+      [point.x - RADIUS, point.y - RADIUS],
+      [point.x + RADIUS, point.y + RADIUS],
+    ],
+    { layers }
+  )
+
+  let best: string | null = null
+  let bestDist = Infinity
+  for (const feature of features) {
+    const name = feature.properties?.name
+    if (typeof name !== "string" || !name) continue
+    if (feature.geometry.type !== "Point") continue
+    const [lng, lat] = feature.geometry.coordinates
+    const projected = map.project([lng, lat])
+    const dist = Math.hypot(projected.x - point.x, projected.y - point.y)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = name
+    }
+  }
+  return best
 }

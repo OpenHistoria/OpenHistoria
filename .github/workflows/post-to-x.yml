@@ -14,6 +14,8 @@ jobs:
   post-to-x:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Post latest commit to X via Zernio
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
@@ -23,72 +25,4 @@ jobs:
           # If absent, this workflow skips posting.
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           COMMIT_URL: ${{ github.event.head_commit.url }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${ZERNIO_TWITTER_ACCOUNT_ID:-}" ]; then
-            echo "::warning::ZERNIO_TWITTER_ACCOUNT_ID secret is not set — skipping the X post."
-            echo "Set it with: gh secret set ZERNIO_TWITTER_ACCOUNT_ID --repo \$GITHUB_REPOSITORY"
-            exit 0
-          fi
-
-          TWEET_TEXT="$(
-            printf '%s' "$COMMIT_MESSAGE" | awk '
-              BEGIN {
-                capture = 0
-              }
-              /^Tweet:[[:space:]]*/ {
-                capture = 1
-                sub(/^Tweet:[[:space:]]*/, "")
-                if (length($0) > 0) {
-                  print
-                }
-                next
-              }
-              capture == 1 && $0 == "" {
-                exit
-              }
-              capture == 1 {
-                print
-              }
-            '
-          )"
-
-          if [ -z "$TWEET_TEXT" ]; then
-            echo "No Tweet: block found in the commit message; skipping the X post."
-            exit 0
-          fi
-
-          # Keep room for the blank line and commit URL within X's 280-char limit.
-          MAX_TEXT_LENGTH=$((280 - 2 - ${#COMMIT_URL}))
-          if [ "$MAX_TEXT_LENGTH" -lt 1 ]; then
-            echo "::error::Commit URL is too long to fit in an X post."
-            exit 1
-          fi
-
-          TWEET_TEXT="$(printf '%s' "$TWEET_TEXT" | cut -c1-"$MAX_TEXT_LENGTH")"
-          CONTENT="${TWEET_TEXT}"$'\n\n'"${COMMIT_URL}"
-
-          PAYLOAD="$(jq -n \
-            --arg content "$CONTENT" \
-            --arg accountId "$ZERNIO_TWITTER_ACCOUNT_ID" \
-            '{content: $content, platforms: [{platform: "twitter", accountId: $accountId}], publishNow: true}')"
-
-          HTTP_CODE="$(curl -sS -o response.json -w '%{http_code}' \
-            -X POST https://api.zernio.com/v1/posts \
-            -H "Authorization: Bearer ${ZERNIO_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")"
-
-          echo "Zernio response (HTTP $HTTP_CODE):"
-          cat response.json || true
-          echo
-
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            echo "Posted to X successfully."
-          elif [ "$HTTP_CODE" = "409" ]; then
-            echo "::warning::Zernio reported duplicate content within 24h (409) — nothing posted, treating as non-fatal."
-          else
-            echo "::error::Zernio API returned HTTP $HTTP_CODE"
-            exit 1
-          fi
+        run: .github/scripts/post-to-x.sh

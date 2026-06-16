@@ -213,6 +213,9 @@ export interface Messages {
     reportDone: string
     reportEmpty: string
     reportProgress: (index: number, total: number) => string
+    speechRead: string
+    speechStop: string
+    speechUnsupported: string
     decisionBadge: string
     decisionDismiss: string
     advisor: {
@@ -239,6 +242,7 @@ export interface Messages {
     directivesPickLocation: string
     directivesPicking: string
     directivesClearLocation: string
+    directivesNear: (place: string) => string
     directivesOutcomeTitle: string
     directivesOutcomeAdvanced: string
     directivesOutcomeUnclear: string
@@ -444,6 +448,9 @@ const en: Messages = {
     reportDone: "Done",
     reportEmpty: "A quiet stretch. Nothing of note reaches your desk.",
     reportProgress: (index, total) => `${index} / ${total}`,
+    speechRead: "Read aloud",
+    speechStop: "Stop reading",
+    speechUnsupported: "Speech playback is not supported in this browser.",
     decisionBadge: "Decision",
     decisionDismiss: "Decide later",
     advisor: {
@@ -472,6 +479,7 @@ const en: Messages = {
     directivesPickLocation: "Pick a location on the map (optional)",
     directivesPicking: "Click the map to set this directive's location...",
     directivesClearLocation: "Clear location",
+    directivesNear: (place) => `near ${place}`,
     directivesOutcomeTitle: "Last order results",
     directivesOutcomeAdvanced: "Advanced",
     directivesOutcomeUnclear: "Unclear",
@@ -725,6 +733,10 @@ const fr: Messages = {
     reportEmpty:
       "Une période calme. Rien de notable n'arrive sur votre bureau.",
     reportProgress: (index, total) => `${index} / ${total}`,
+    speechRead: "Lire à voix haute",
+    speechStop: "Arrêter la lecture",
+    speechUnsupported:
+      "La lecture vocale n'est pas prise en charge par ce navigateur.",
     decisionBadge: "Décision",
     decisionDismiss: "Décider plus tard",
     advisor: {
@@ -753,6 +765,7 @@ const fr: Messages = {
     directivesPickLocation: "Choisir un lieu sur la carte (facultatif)",
     directivesPicking: "Cliquez sur la carte pour situer cette directive...",
     directivesClearLocation: "Effacer le lieu",
+    directivesNear: (place) => `près de ${place}`,
     directivesOutcomeTitle: "Résultats des derniers ordres",
     directivesOutcomeAdvanced: "Avancé",
     directivesOutcomeUnclear: "Incertain",

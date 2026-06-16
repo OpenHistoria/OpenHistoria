@@ -6,8 +6,10 @@ import { News01Icon } from "@hugeicons/core-free-icons"
 import type { EventKind } from "@workspace/engine"
 
 import { useGameSession } from "@/components/game/game-session"
+import { SpeechButton } from "@/components/game/speech-button"
 import { FloatingPanel } from "@/components/hud/floating-panel"
 import { useI18n } from "@/hooks/use-i18n"
+import { eventSpeechText } from "@/lib/event-speech"
 import { formatGameDate } from "@/lib/format"
 
 /** Left border accent per event kind, so the feed scans at a glance. */
@@ -83,9 +85,12 @@ export function BriefingPanel({
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {event.description}
               </p>
-              <span className="mt-1 inline-block text-[10px] tracking-wide text-muted-foreground uppercase">
-                {t.game.kinds[event.kind]}
-              </span>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="inline-block text-[10px] tracking-wide text-muted-foreground uppercase">
+                  {t.game.kinds[event.kind]}
+                </span>
+                <SpeechButton text={eventSpeechText(event, locale, t)} />
+              </div>
             </li>
           ))}
         </ul>
