@@ -5,8 +5,19 @@ import { Result } from "better-result"
 import maplibregl from "maplibre-gl"
 import { Protocol } from "pmtiles"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { GlobalIcon, MapsSquare01Icon } from "@hugeicons/core-free-icons"
+import {
+  GlobalIcon,
+  MapsSquare01Icon,
+  MinusSignIcon,
+  PlusSignIcon,
+} from "@hugeicons/core-free-icons"
 import "maplibre-gl/dist/maplibre-gl.css"
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
 
 import { useMapContext } from "@/components/map/map-context"
 import { useI18n } from "@/hooks/use-i18n"
@@ -51,6 +62,9 @@ const IDLE_SPIN_SPEED = 1.5
 const IDLE_SPIN_MAX_ZOOM = 4
 /** From this zoom on, hover targets regions instead of countries. */
 const REGION_HOVER_MIN_ZOOM = 5
+const MAP_INITIAL_ZOOM = 2.4
+const MAP_MIN_ZOOM = 1
+const MAP_MAX_ZOOM = 18.5
 
 const PROJECTION_STORAGE_KEY = "openhistoria:projection"
 
@@ -77,11 +91,13 @@ export function WorldMap() {
   const { setMap } = useMapContext()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const stopSpinRef = useRef<() => void>(() => {})
   // The map is created once; the mousemove handler reads the live locale
   // through this ref to label country hovers without re-running the effect.
   const localeRef = useRef(locale)
   const [loaded, setLoaded] = useState(false)
   const [projection, setProjection] = useState<ProjectionMode>("globe")
+  const [zoom, setZoom] = useState(MAP_INITIAL_ZOOM)
   const [hoverLabel, setHoverLabel] = useState<string | null>(null)
 
   useEffect(() => {
@@ -92,9 +108,9 @@ export function WorldMap() {
       container: containerRef.current,
       style: mapStyle,
       center: [12, 30],
-      zoom: 2.4,
-      minZoom: 1,
-      maxZoom: 18.5,
+      zoom: MAP_INITIAL_ZOOM,
+      minZoom: MAP_MIN_ZOOM,
+      maxZoom: MAP_MAX_ZOOM,
       maxPitch: 0,
       dragRotate: false,
       touchPitch: false,
@@ -111,12 +127,6 @@ export function WorldMap() {
     map.scrollZoom.setWheelZoomRate(1 / 150)
     map.scrollZoom.setZoomRate(1 / 65)
 
-    // Top-right so the bottom-right corner is free for the time-controls deck.
-    map.addControl(
-      new maplibregl.NavigationControl({ showCompass: false }),
-      "top-right"
-    )
-
     // Idle spin: slow drift until the user interacts.
     let spinning = true
     const spin = () => {
@@ -129,11 +139,13 @@ export function WorldMap() {
       spinning = false
       map.stop()
     }
+    stopSpinRef.current = stopSpinning
     map.on("moveend", spin)
     map.on("mousedown", stopSpinning)
     map.on("touchstart", stopSpinning)
     map.on("wheel", stopSpinning)
     map.on("dblclick", stopSpinning)
+    map.on("zoom", () => setZoom(map.getZoom()))
 
     // Hover highlight: countries when zoomed out, regions when zoomed in.
     let hovered: HoverTarget | null = null
@@ -191,6 +203,7 @@ export function WorldMap() {
 
     return () => {
       mapRef.current = null
+      stopSpinRef.current = () => {}
       setMap(null)
       map.remove()
     }
@@ -207,6 +220,19 @@ export function WorldMap() {
     setProjection(mode)
     storeProjection(mode)
     mapRef.current?.setProjection({ type: mode })
+  }
+
+  const zoomBy = (delta: number) => {
+    const map = mapRef.current
+    if (!map) return
+    stopSpinRef.current()
+    map.easeTo({
+      zoom: Math.max(
+        MAP_MIN_ZOOM,
+        Math.min(MAP_MAX_ZOOM, map.getZoom() + delta)
+      ),
+      duration: 180,
+    })
   }
 
   return (
@@ -238,6 +264,48 @@ export function WorldMap() {
             {label}
           </button>
         ))}
+      </div>
+      <div className="absolute top-12 right-2.5 z-10 flex flex-col overflow-hidden rounded-md border border-border bg-background/80 text-foreground backdrop-blur-sm">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-label={t.map.zoomIn}
+                disabled={zoom >= MAP_MAX_ZOOM}
+                onClick={() => zoomBy(1)}
+                className="flex size-[30px] items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:opacity-40"
+              />
+            }
+          >
+            <HugeiconsIcon
+              icon={PlusSignIcon}
+              strokeWidth={2}
+              className="size-4"
+            />
+          </TooltipTrigger>
+          <TooltipContent side="left">{t.map.zoomIn}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-label={t.map.zoomOut}
+                disabled={zoom <= MAP_MIN_ZOOM}
+                onClick={() => zoomBy(-1)}
+                className="flex size-[30px] items-center justify-center border-t border-border transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:opacity-40"
+              />
+            }
+          >
+            <HugeiconsIcon
+              icon={MinusSignIcon}
+              strokeWidth={2}
+              className="size-4"
+            />
+          </TooltipTrigger>
+          <TooltipContent side="left">{t.map.zoomOut}</TooltipContent>
+        </Tooltip>
       </div>
       {hoverLabel && (
         <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background/80 px-4 py-1.5 text-sm font-medium tracking-wide text-foreground backdrop-blur-sm">

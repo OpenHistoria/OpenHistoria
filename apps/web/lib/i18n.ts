@@ -64,6 +64,8 @@ export interface Messages {
   map: {
     globe: string
     flat: string
+    zoomIn: string
+    zoomOut: string
   }
   newGame: {
     buttonLabel: string
@@ -280,6 +282,8 @@ const en: Messages = {
   map: {
     globe: "Globe",
     flat: "Flat",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
   },
   newGame: {
     buttonLabel: "New game",
@@ -559,6 +563,8 @@ const fr: Messages = {
   map: {
     globe: "Globe",
     flat: "Plat",
+    zoomIn: "Zoomer",
+    zoomOut: "Dézoomer",
   },
   newGame: {
     buttonLabel: "Nouvelle partie",
