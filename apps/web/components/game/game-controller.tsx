@@ -7,7 +7,6 @@ import {
   Menu01Icon,
   News01Icon,
   Settings01Icon,
-  UserShield01Icon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
 
@@ -162,16 +161,18 @@ export function GameController() {
                     onClick={toggleAdvisor}
                     aria-label={t.game.advisor.title}
                     aria-pressed={advisorOpen}
-                    className="flex size-12 cursor-pointer items-center justify-center rounded-full border border-border bg-background/70 text-foreground backdrop-blur-sm transition-transform hover:scale-105 active:translate-y-px"
-                  />
+                    className="size-14 cursor-pointer overflow-hidden rounded-full border border-border bg-background/70 p-1.5 backdrop-blur-sm transition-transform hover:scale-105 active:translate-y-px"
+                  >
+                    <Image
+                      src="/icons/advisor.png"
+                      alt=""
+                      width={200}
+                      height={200}
+                      className="size-full scale-115 object-contain drop-shadow-md"
+                    />
+                  </button>
                 }
-              >
-                <HugeiconsIcon
-                  icon={UserShield01Icon}
-                  strokeWidth={2}
-                  className="size-5"
-                />
-              </TooltipTrigger>
+              />
               <TooltipContent side="top">{t.game.advisor.title}</TooltipContent>
             </Tooltip>
 
@@ -183,18 +184,18 @@ export function GameController() {
                     onClick={toggleDirectives}
                     aria-label={t.game.directivesTitle}
                     aria-pressed={directivesOpen}
-                    className="size-14 cursor-pointer rounded-full border border-border bg-background/70 p-1.5 backdrop-blur-sm transition-transform hover:scale-105 active:translate-y-px"
-                  />
+                    className="size-14 cursor-pointer overflow-hidden rounded-full border border-border bg-background/70 p-1.5 backdrop-blur-sm transition-transform hover:scale-105 active:translate-y-px"
+                  >
+                    <Image
+                      src="/icons/directives.png"
+                      alt=""
+                      width={200}
+                      height={200}
+                      className="size-full object-contain drop-shadow-md"
+                    />
+                  </button>
                 }
-              >
-                <Image
-                  src="/icons/directives.png"
-                  alt=""
-                  width={200}
-                  height={200}
-                  className="size-full object-contain drop-shadow-md"
-                />
-              </TooltipTrigger>
+              />
               <TooltipContent side="top">
                 {t.game.directivesTitle}
               </TooltipContent>

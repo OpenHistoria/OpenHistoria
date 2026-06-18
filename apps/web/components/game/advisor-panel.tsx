@@ -1,13 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   PlusSignIcon,
   RefreshIcon,
   SentIcon,
   Tick02Icon,
-  UserShield01Icon,
 } from "@hugeicons/core-free-icons"
 
 import { Spinner } from "@workspace/ui/components/spinner"
@@ -151,10 +151,12 @@ export function AdvisorPanel({
       onPositionChange={onPositionChange}
       title={t.game.advisor.title}
       icon={
-        <HugeiconsIcon
-          icon={UserShield01Icon}
-          strokeWidth={2}
-          className="size-4"
+        <Image
+          src="/icons/advisor.png"
+          alt=""
+          width={40}
+          height={40}
+          className="size-5 rounded-full object-contain"
         />
       }
       className="flex h-[min(74vh,560px)] w-[min(92vw,420px)] flex-col"

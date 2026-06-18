@@ -223,7 +223,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
       // render DialogDescription in the body below.
       data-dialog-drag=""
       className={cn(
-        "-mx-4 -mt-4 flex cursor-move items-center gap-2 border-b border-border bg-muted/40 px-4 py-3 pe-12 text-sm font-semibold tracking-wide select-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground",
+        "-mx-4 -mt-4 flex cursor-move touch-none items-center gap-2 border-b border-border bg-muted/40 px-4 py-3 pe-12 text-sm font-semibold tracking-wide select-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground",
         className
       )}
       {...props}
