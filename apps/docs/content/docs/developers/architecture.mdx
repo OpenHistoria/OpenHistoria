@@ -1,0 +1,32 @@
+---
+title: Architecture
+description: Workspace layout and the main ownership boundaries in the codebase.
+---
+
+## Workspace
+
+OpenHistoria is a Bun monorepo:
+
+- `apps/web` contains the playable Next.js app.
+- `apps/docs` contains this Fumadocs documentation app.
+- `packages/engine` contains simulation and prompt orchestration logic.
+- `packages/ui` contains shared styling, components, and frontend utilities.
+- `packages/eslint-config` and `packages/typescript-config` keep app configuration consistent.
+
+## Web App
+
+The web app owns the player experience: map rendering, HUD composition, scenario start, directives, settings, and the game session state that connects UI to the engine.
+
+## Engine Package
+
+The engine package owns the simulation contract. It defines the state and prompt structures that turn player directives into model requests and model responses into application data.
+
+Keep engine behavior testable outside the UI. If code does not need the browser, it probably belongs in the engine package or a shared package rather than a component.
+
+## Docs App
+
+The docs app uses Fumadocs MDX. Content lives in `apps/docs/content/docs`, and the generated collection is read through `apps/docs/lib/source.ts`.
+
+## Next.js 16 Note
+
+This repository uses Next.js 16. Before changing framework conventions, read the versioned documentation included in the installed Next package. Do not assume older Next.js behavior.

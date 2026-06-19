@@ -1,0 +1,11 @@
+@import "@workspace/ui/globals.css";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+:root {
+  --fd-layout-width: 92rem;
+}
+
+body {
+  min-height: 100vh;
+}

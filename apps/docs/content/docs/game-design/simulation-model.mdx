@@ -1,0 +1,33 @@
+---
+title: Simulation Model
+description: How OpenHistoria represents historical momentum without pretending the model is deterministic.
+---
+
+## Design Goal
+
+The simulation should create plausible alternate-history pressure, not a single "correct" timeline. Player directives matter, but institutions, geography, prior commitments, and regional context should keep the world grounded.
+
+## State
+
+The game state tracks:
+
+- Country identity and current date.
+- Completed and pending events.
+- Player directives.
+- Scheduled developments.
+- Briefing history.
+- Decision prompts and selected options.
+
+## Model Responsibilities
+
+The AI simulation is responsible for narrative synthesis, consequence framing, and identifying meaningful developments. The application code is responsible for state shape, user interaction, persistence boundaries, and validation.
+
+## Pacing
+
+Every jump should answer three questions:
+
+1. What did the player's directives change?
+2. What happened outside the player's control?
+3. What new strategic choice does the player face?
+
+If a jump cannot answer those questions, it is probably too small, too vague, or missing context.

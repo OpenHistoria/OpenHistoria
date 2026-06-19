@@ -1,0 +1,42 @@
+---
+title: Contributing
+description: How to make changes without destabilizing the game loop.
+---
+
+## Local Checks
+
+Run focused checks before broad checks:
+
+```bash
+bun --filter web typecheck
+bun --filter web lint
+bun --filter docs typecheck
+bun --filter docs lint
+```
+
+Use the root scripts when you need full workspace confidence:
+
+```bash
+bun typecheck
+bun lint
+bun build
+```
+
+## Change Discipline
+
+Keep changes scoped to the behavior you are touching. Avoid refactoring unrelated UI, prompt text, or state shape in the same patch unless it is needed to complete the change.
+
+## Documentation Updates
+
+Update this documentation when you change:
+
+- Player-facing flows.
+- Directive semantics.
+- Simulation response shape.
+- Environment variables.
+- Deployment or build commands.
+- App or package ownership boundaries.
+
+## Commit Messages
+
+The repository has a special convention for public posts. The GitHub Action that posts to X only runs for pushes to `master`, and only when the latest commit body includes a `Tweet:` block. Keep that text public-ready and short enough to fit with the commit URL appended.

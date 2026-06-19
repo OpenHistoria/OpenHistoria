@@ -1,0 +1,51 @@
+---
+title: Quickstart
+description: Run OpenHistoria locally and start a first scenario.
+---
+
+## Run The App
+
+OpenHistoria uses Bun workspaces and Turbo.
+
+```bash
+bun install
+bun dev
+```
+
+The game app runs from `apps/web`. The docs app runs separately from `apps/docs` on port `3001`.
+
+```bash
+bun --filter docs dev
+```
+
+## Required Environment
+
+The web app expects Supabase and OpenRouter configuration when you use persistence or AI-backed simulation.
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_MAP_REGIONS_URL=
+```
+
+Keep private API keys out of public `NEXT_PUBLIC_*` variables. Client-visible values are bundled into the browser.
+
+## First Scenario
+
+1. Open the game.
+2. Start a new game.
+3. Select a country.
+4. Review the initial briefing.
+5. Add one or more directives.
+6. Advance time.
+
+Good first directives are concrete and testable:
+
+- Stabilize food supply in the capital region.
+- Open talks with a neighboring rival.
+- Redirect public works funding toward ports and rail.
+- Prepare the army for defensive mobilization near a disputed border.
+
+## What To Watch
+
+The simulation responds best when directives describe intent, target, and scale. A directive like "improve the economy" is weaker than "subsidize small manufacturers in the northern industrial cities for the next six months."
