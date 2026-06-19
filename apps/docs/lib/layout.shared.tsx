@@ -14,7 +14,7 @@ export function baseOptions(): BaseLayoutProps {
       },
       {
         text: "GitHub",
-        url: "https://github.com/alexisbouchez/OpenHistoria",
+        url: "https://github.com/OpenHistoria/OpenHistoria",
         external: true,
       },
     ],
