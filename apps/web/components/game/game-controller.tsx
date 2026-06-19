@@ -168,7 +168,7 @@ export function GameController() {
                       alt=""
                       width={200}
                       height={200}
-                      className="size-full scale-115 object-contain drop-shadow-md"
+                      className="size-full object-contain drop-shadow-md"
                     />
                   </button>
                 }
