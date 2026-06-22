@@ -168,18 +168,18 @@ export function PauseMenu({
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={handleExport}
-              >
-                <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
-                {t.menu.exportSave}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <HugeiconsIcon icon={Upload01Icon} strokeWidth={2} />
                 {t.menu.importSave}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={handleExport}
+              >
+                <HugeiconsIcon icon={Download01Icon} strokeWidth={2} />
+                {t.menu.exportSave}
               </Button>
               <input
                 ref={fileInputRef}
