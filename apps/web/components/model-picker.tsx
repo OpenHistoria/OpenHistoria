@@ -3,22 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArrowReloadHorizontalIcon,
   RouterIcon,
   Search01Icon,
-  SparklesIcon,
 } from "@hugeicons/core-free-icons"
 
-import {
-  DEFAULT_MODEL,
-  OPENROUTER_FREE_MODEL,
-  ROTATE_FREE_MODELS,
-} from "@workspace/engine"
+import { DEFAULT_MODEL, OPENROUTER_FREE_MODEL } from "@workspace/engine"
 import { cn } from "@workspace/ui/lib/utils"
 
 import { useI18n } from "@/hooks/use-i18n"
 import { useOpenRouterModels } from "@/hooks/use-openrouter-models"
-import { pickBestFreeModel } from "@/lib/openrouter-models"
 
 /** Searchable OpenRouter model list for the new-game flow and settings. */
 export function ModelPicker({
@@ -35,15 +28,13 @@ export function ModelPicker({
   const { models, loading, error } = useOpenRouterModels()
   const [query, setQuery] = useState("")
 
-  const bestFree = useMemo(() => pickBestFreeModel(models), [models])
-
-  // Default new games to rotating free models so play is free and resilient.
+  // Default new games to the OpenRouter free auto-router so play is free.
   const autoSelected = useRef(false)
   useEffect(() => {
-    if (autoSelected.current || !preferFreeByDefault || !bestFree) return
+    if (autoSelected.current || !preferFreeByDefault) return
     autoSelected.current = true
-    if (selected === DEFAULT_MODEL) onSelect(ROTATE_FREE_MODELS)
-  }, [preferFreeByDefault, bestFree, selected, onSelect])
+    if (selected === DEFAULT_MODEL) onSelect(OPENROUTER_FREE_MODEL)
+  }, [preferFreeByDefault, selected, onSelect])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -74,42 +65,15 @@ export function ModelPicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t.newGame.modelSearchPlaceholder}
-          className="w-full rounded-md border border-border bg-background py-1.5 pr-2 pl-8 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          className="w-full rounded-md border border-input bg-background py-1.5 pr-2 pl-8 text-sm outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
       </div>
-      {bestFree && (
-        <button
-          type="button"
-          onClick={() => onSelect(ROTATE_FREE_MODELS)}
-          aria-pressed={selected === ROTATE_FREE_MODELS}
-          className={cn(
-            "flex items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors",
-            selected === ROTATE_FREE_MODELS
-              ? "border-primary bg-primary/10"
-              : "border-border/60 hover:bg-muted/60"
-          )}
-        >
-          <HugeiconsIcon
-            icon={ArrowReloadHorizontalIcon}
-            strokeWidth={2}
-            className="size-4 text-primary"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">
-              {t.newGame.modelRotateFree}
-            </div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              {t.newGame.modelRotateFreeHint}
-            </div>
-          </div>
-        </button>
-      )}
       <button
         type="button"
         onClick={() => onSelect(OPENROUTER_FREE_MODEL)}
         aria-pressed={selected === OPENROUTER_FREE_MODEL}
         className={cn(
-          "flex items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors",
+          "flex items-center gap-2 rounded-md border px-3 py-2 text-left outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           selected === OPENROUTER_FREE_MODEL
             ? "border-primary bg-primary/10"
             : "border-border/60 hover:bg-muted/60"
@@ -129,31 +93,6 @@ export function ModelPicker({
           </div>
         </div>
       </button>
-      {bestFree && (
-        <button
-          type="button"
-          onClick={() => onSelect(bestFree.id)}
-          aria-pressed={selected === bestFree.id}
-          className={cn(
-            "flex items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors",
-            selected === bestFree.id
-              ? "border-primary bg-primary/10"
-              : "border-border/60 hover:bg-muted/60"
-          )}
-        >
-          <HugeiconsIcon
-            icon={SparklesIcon}
-            strokeWidth={2}
-            className="size-4 text-primary"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">{t.newGame.modelBestFree}</div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              {bestFree.name} · {t.newGame.modelFree}
-            </div>
-          </div>
-        </button>
-      )}
       <div className="max-h-52 overflow-y-auto rounded-md border border-border/60">
         {loading ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
