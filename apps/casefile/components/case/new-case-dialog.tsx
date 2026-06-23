@@ -178,7 +178,12 @@ export function NewCaseDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setStep("detective")}>
+              <Button
+                onClick={() => {
+                  setError(null)
+                  setStep("detective")
+                }}
+              >
                 Next: detective
                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
               </Button>
@@ -187,7 +192,10 @@ export function NewCaseDialog({
             <>
               <Button
                 variant="outline"
-                onClick={() => setStep("case")}
+                onClick={() => {
+                  setError(null)
+                  setStep("case")
+                }}
                 disabled={creating || generating}
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />

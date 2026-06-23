@@ -88,45 +88,66 @@ interface CompletionsResponse {
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 520, 522, 524])
 const MAX_ATTEMPTS = 3
 
+// Floor for the affordability retry: never shrink the output cap below this, or
+// the model can't return a usable reply (truncated JSON parses as an error).
+const MIN_AFFORDABLE_OUTPUT_TOKENS = 1024
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const errorMessage = async (response: Response): Promise<string | undefined> => {
+/** Pulls OpenRouter's human-readable explanation out of an error body. */
+const errorMessage = (text: string): string | undefined => {
+  if (!text) return undefined
   try {
-    const text = await response.text()
     const parsed = JSON.parse(text) as { error?: { message?: string } }
     return (parsed?.error?.message ?? text)?.slice(0, 300)
   } catch {
-    return undefined
+    return text.slice(0, 300)
   }
+}
+
+/**
+ * On a 402, OpenRouter says how many tokens the balance can actually afford,
+ * e.g. "you requested up to 6144 tokens, but can only afford 4886". Pull that
+ * number out so the call can be retried with a cap the account can cover.
+ */
+const affordableTokens = (text: string): number | null => {
+  const match = /can only afford\s+(\d+)/i.exec(text)
+  if (!match) return null
+  const tokens = Number(match[1])
+  return Number.isFinite(tokens) && tokens > 0 ? tokens : null
 }
 
 /** Returns the assistant message content for the given conversation. */
 export const requestCompletion = async (
   request: CompletionRequest
 ): Promise<Result<string, CompletionError>> => {
-  const body = JSON.stringify({
-    model: request.model,
-    messages: request.messages,
-    // OpenRouter routes through `models` in order when a model errors/limits.
-    // It caps the array at 3 entries, so include the primary plus 2 fallbacks.
-    ...(request.fallbackModels?.length && {
-      models: [...new Set([request.model, ...request.fallbackModels])].slice(
-        0,
-        3
-      ),
-    }),
-    ...(request.maxTokens && { max_tokens: request.maxTokens }),
-    ...(request.schema && {
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: request.schema.name,
-          strict: true,
-          schema: request.schema.schema,
+  // Mutable so an affordability 402 can shrink it and retry within this call.
+  let maxTokens = request.maxTokens
+
+  const buildBody = () =>
+    JSON.stringify({
+      model: request.model,
+      messages: request.messages,
+      // OpenRouter routes through `models` in order when a model errors/limits.
+      // It caps the array at 3 entries, so include the primary plus 2 fallbacks.
+      ...(request.fallbackModels?.length && {
+        models: [...new Set([request.model, ...request.fallbackModels])].slice(
+          0,
+          3
+        ),
+      }),
+      ...(maxTokens && { max_tokens: maxTokens }),
+      ...(request.schema && {
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: request.schema.name,
+            strict: true,
+            schema: request.schema.schema,
+          },
         },
-      },
-    }),
-  })
+      }),
+    })
 
   const url = completionsUrl(request.baseUrl ?? DEFAULT_BASE_URL)
   const headers: Record<string, string> = {
@@ -136,13 +157,15 @@ export const requestCompletion = async (
   // the auth header when there is actually a key to send.
   if (request.apiKey) headers.Authorization = `Bearer ${request.apiKey}`
 
+  let triedAffordabilityRetry = false
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let response: Response
     try {
       response = await fetch(url, {
         method: "POST",
         headers,
-        body,
+        body: buildBody(),
       })
     } catch {
       return Result.err(new CompletionNetworkError())
@@ -160,6 +183,36 @@ export const requestCompletion = async (
       return Result.ok(content)
     }
 
+    // The body can only be read once; capture it for both the affordability
+    // check and the eventual error message.
+    let text = ""
+    try {
+      text = await response.text()
+    } catch {
+      // Leave text empty; fall through to a status-only error.
+    }
+
+    // Low balance: OpenRouter reserves the full max_tokens against the account
+    // up front and 402s when the cap exceeds what the balance covers, reporting
+    // how many it CAN afford. Retry once with that smaller cap so free- and
+    // low-balance accounts still complete the call instead of dead-ending.
+    if (
+      response.status === 402 &&
+      !triedAffordabilityRetry &&
+      attempt < MAX_ATTEMPTS
+    ) {
+      const affordable = affordableTokens(text)
+      if (
+        affordable &&
+        affordable >= MIN_AFFORDABLE_OUTPUT_TOKENS &&
+        (!maxTokens || affordable < maxTokens)
+      ) {
+        triedAffordabilityRetry = true
+        maxTokens = affordable
+        continue
+      }
+    }
+
     // Retry transient failures with backoff, honoring Retry-After when given.
     if (RETRYABLE_STATUSES.has(response.status) && attempt < MAX_ATTEMPTS) {
       const retryAfter = Number(response.headers.get("retry-after"))
@@ -175,7 +228,7 @@ export const requestCompletion = async (
     return Result.err(
       new CompletionRequestFailedError({
         status: response.status,
-        message: await errorMessage(response),
+        message: errorMessage(text),
       })
     )
   }
