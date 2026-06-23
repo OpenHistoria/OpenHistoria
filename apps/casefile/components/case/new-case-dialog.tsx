@@ -6,6 +6,7 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   SearchVisualIcon,
+  SparklesIcon,
 } from "@hugeicons/core-free-icons"
 
 import { OPENROUTER_FREE_MODEL } from "@workspace/engine"
@@ -35,7 +36,10 @@ import { Textarea } from "@workspace/ui/components/textarea"
 import { cn } from "@workspace/ui/lib/utils"
 
 import { engine } from "@/lib/engine"
-import { formatCreateCaseError } from "@/lib/errors"
+import {
+  formatCreateCaseError,
+  formatGenerateDetectiveError,
+} from "@/lib/errors"
 import { getPreferFreeRotation } from "@/lib/openrouter"
 
 const SETTING_TAGLINES: Record<Setting, string> = {
@@ -77,6 +81,7 @@ export function NewCaseDialog({
   const [premise, setPremise] = useState("")
   const [detective, setDetective] = useState<Detective>(EMPTY_DETECTIVE)
   const [creating, setCreating] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const reset = () => {
@@ -87,10 +92,27 @@ export function NewCaseDialog({
     setDetective(EMPTY_DETECTIVE)
     setError(null)
     setCreating(false)
+    setGenerating(false)
   }
 
   const setField = (key: keyof Detective, value: string) =>
     setDetective((d) => ({ ...d, [key]: value }))
+
+  const generate = async () => {
+    setGenerating(true)
+    setError(null)
+    const result = await engine.generateDetective({
+      setting,
+      premise,
+      language: "English",
+      ...freeModelOpts(),
+    })
+    setGenerating(false)
+    result.match({
+      ok: (d) => setDetective(d),
+      err: (e) => setError(formatGenerateDetectiveError(e)),
+    })
+  }
 
   const begin = async () => {
     setCreating(true)
@@ -113,7 +135,8 @@ export function NewCaseDialog({
     })
   }
 
-  const canBegin = detective.name.trim().length > 0 && !creating
+  const canBegin =
+    detective.name.trim().length > 0 && !creating && !generating
 
   return (
     <Dialog
@@ -139,7 +162,12 @@ export function NewCaseDialog({
             onPremise={setPremise}
           />
         ) : (
-          <DetectiveStep detective={detective} onField={setField} />
+          <DetectiveStep
+            detective={detective}
+            onField={setField}
+            onGenerate={() => void generate()}
+            generating={generating}
+          />
         )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -160,7 +188,7 @@ export function NewCaseDialog({
               <Button
                 variant="outline"
                 onClick={() => setStep("case")}
-                disabled={creating}
+                disabled={creating || generating}
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
                 Back
@@ -316,16 +344,37 @@ function CaseStep({
 function DetectiveStep({
   detective,
   onField,
+  onGenerate,
+  generating,
 }: {
   detective: Detective
   onField: (key: keyof Detective, value: string) => void
+  onGenerate: () => void
+  generating: boolean
 }) {
   return (
     <div className="grid gap-3">
-      <DialogDescription>
-        Who&apos;s working the case? Only a name is required - the rest colors
-        how the story is told.
-      </DialogDescription>
+      <div className="flex items-start justify-between gap-3">
+        <DialogDescription>
+          Who&apos;s working the case? Only a name is required - the rest colors
+          how the story is told.
+        </DialogDescription>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onGenerate}
+          disabled={generating}
+          className="shrink-0"
+        >
+          {generating ? (
+            <Spinner />
+          ) : (
+            <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} />
+          )}
+          {generating ? "Inventing..." : "Generate"}
+        </Button>
+      </div>
 
       <div className="-mx-1 grid max-h-[48vh] gap-3 overflow-y-auto px-1 pb-1">
         <div className="grid grid-cols-2 gap-3">

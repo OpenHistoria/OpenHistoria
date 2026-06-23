@@ -182,6 +182,51 @@ export const buildAccusationPrompt = ({
     `Write everything in ${theCase.language}.`,
   ].join("\n")
 
+export interface DetectivePromptInput {
+  setting: Setting
+  /** The case hook the player set, if any, to tilt the persona toward it. */
+  premise?: string
+  language: string
+}
+
+/**
+ * Prompt to invent a single detective persona that fits the chosen setting -
+ * the five fields the New Case form asks for. Used to fill the form when the
+ * player would rather be handed a character than write one.
+ */
+export const buildDetectivePrompt = ({
+  setting,
+  premise,
+  language,
+}: DetectivePromptInput): string => {
+  const lines = [
+    `Invent a single, vivid detective to work a murder set in ${SETTING_FLAVOR[setting]} (${SETTING_LABELS[setting]}).`,
+    "",
+    "Return a complete persona:",
+    "- name: a memorable full name that fits the setting.",
+    '- pronouns: e.g. "she/her", "he/him", "they/them".',
+    "- role: their rank, profession, or reputation (e.g. Scotland Yard inspector, jaded private eye, insurance investigator).",
+    "- style: how they work and carry themselves - method and temperament - in a sentence or two.",
+    "- background: where they come from and what they bring into this case, in a sentence or two.",
+    "",
+    "Make them distinctive and a natural fit for the setting, not a generic everyman. Do not reuse famous fictional detectives by name.",
+  ]
+
+  if (premise?.trim()) {
+    lines.push(
+      "",
+      `The case hook is: "${premise.trim()}". Lean the detective toward someone this case would land on.`
+    )
+  }
+
+  lines.push(
+    "",
+    `Write every field value in ${language}. Keep proper nouns natural for that language.`
+  )
+
+  return lines.join("\n")
+}
+
 export interface CaseFilePromptInput {
   setting: Setting
   difficulty: Difficulty

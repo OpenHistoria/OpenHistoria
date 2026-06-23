@@ -31,6 +31,59 @@ const STATUS_LABEL: Record<Case["status"], string> = {
   failed: "Cold",
 }
 
+// Layered, cinematic noir backdrop: a cold overhead "interrogation" light, a
+// warm desk-lamp pool, a cool counter-glow for depth, a vignette to pull focus
+// to the center, and fine film grain over the top. Replaces the flat top glow.
+function Atmosphere() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+    >
+      {/* Cold overhead light — the interrogation lamp. */}
+      <div
+        className="absolute inset-x-0 -top-[18%] h-[80vh]"
+        style={{
+          background:
+            "radial-gradient(54% 56% at 50% 0%, oklch(0.82 0.06 236 / 0.32), transparent 70%)",
+        }}
+      />
+      {/* Warm desk-lamp pool, lower-right — the noir hint of amber. */}
+      <div
+        className="absolute -right-[6%] -bottom-[14%] h-[60vh] w-[60vh]"
+        style={{
+          background:
+            "radial-gradient(circle at center, oklch(0.77 0.11 62 / 0.22), transparent 64%)",
+        }}
+      />
+      {/* Cool counter-glow, lower-left, to balance the warm pool. */}
+      <div
+        className="absolute -bottom-[22%] -left-[12%] h-[54vh] w-[54vh]"
+        style={{
+          background:
+            "radial-gradient(circle at center, oklch(0.64 0.07 256 / 0.16), transparent 62%)",
+        }}
+      />
+      {/* Vignette — darkens the corners and pulls the eye to the headline. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(125% 105% at 50% 28%, transparent 38%, oklch(0.03 0 0 / 0.72) 100%)",
+        }}
+      />
+      {/* Fine film grain for texture and depth. */}
+      <div
+        className="absolute inset-0 opacity-[0.06] mix-blend-soft-light"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
+    </div>
+  )
+}
+
 export function Home() {
   const { status } = useOpenRouter()
   const [theCase, setCase] = useState<Case | null>(null)
@@ -108,7 +161,7 @@ export function Home() {
 
   return (
     <main className="relative min-h-svh w-full overflow-y-auto bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,theme(colors.primary/15),transparent_60%)]" />
+      <Atmosphere />
 
       <div className="relative mx-auto flex min-h-svh w-full max-w-3xl flex-col px-5 py-10">
         <header className="flex items-center justify-between">

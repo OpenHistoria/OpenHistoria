@@ -12,12 +12,14 @@ import {
   buildAccusationPrompt,
   buildCaseFilePrompt,
   buildContinuePrompt,
+  buildDetectivePrompt,
   buildOpeningPrompt,
   buildSystemPrompt,
 } from "@workspace/detective-engine/prompts"
 import type { CaseStore, CaseStoreError } from "@workspace/detective-engine/store"
 import {
   CaseFileSchema,
+  DetectiveSchema,
   EMPTY_STATE,
   RoundOutputSchema,
   toInvestigation,
@@ -56,11 +58,21 @@ export class InvalidCaseFileOutputError extends TaggedError(
   "InvalidCaseFileOutput"
 )<{ raw: string }>() {}
 
+/** The model replied, but not with a valid detective JSON. */
+export class InvalidDetectiveOutputError extends TaggedError(
+  "InvalidDetectiveOutput"
+)<{ raw: string }>() {}
+
 export type CreateCaseError =
   | MissingApiKeyError
   | InvalidCaseFileOutputError
   | CompletionError
   | CaseStoreError
+
+export type GenerateDetectiveError =
+  | MissingApiKeyError
+  | InvalidDetectiveOutputError
+  | CompletionError
 
 export type AdvanceError =
   | CaseNotFoundError
@@ -89,6 +101,8 @@ export const DEFAULT_LANGUAGE = "English"
  */
 export const DEFAULT_MAX_OUTPUT_TOKENS = 4096
 export const CASE_FILE_MAX_OUTPUT_TOKENS = 6144
+/** A single detective persona is small; a tight cap keeps the call cheap. */
+export const DETECTIVE_MAX_OUTPUT_TOKENS = 1024
 
 export interface EngineConfig {
   store: CaseStore
@@ -116,6 +130,19 @@ export interface CreateCaseInput {
   detective: Detective
   premise: string
   /** Override the engine-level model for this case. */
+  model?: string
+  /** Fallback models OpenRouter routes to if the model errors/limits. */
+  fallbackModels?: string[]
+  /** Language (English name) for generated content; defaults to English. */
+  language?: string
+}
+
+export interface GenerateDetectiveInput {
+  /** The setting the detective should fit. */
+  setting: Setting
+  /** The case hook, if any, to tilt the persona toward the case. */
+  premise?: string
+  /** Override the engine-level model for this generation. */
   model?: string
   /** Fallback models OpenRouter routes to if the model errors/limits. */
   fallbackModels?: string[]
@@ -264,6 +291,50 @@ export class Engine {
     if (recorded.isErr()) return Result.err(recorded.error)
 
     return Result.ok(theCase)
+  }
+
+  /**
+   * Invents a single detective persona fitting the chosen setting (and premise,
+   * if any) for the player to start from. Nothing is persisted - the caller
+   * decides whether to keep, edit, or discard it before opening a case.
+   */
+  async generateDetective(
+    input: GenerateDetectiveInput
+  ): Promise<Result<Detective, GenerateDetectiveError>> {
+    const baseUrl = this.getBaseUrl() ?? undefined
+    const apiKey = this.getApiKey()
+    if (!apiKey && !baseUrl) return Result.err(new MissingApiKeyError())
+
+    const language = input.language ?? DEFAULT_LANGUAGE
+    const model = input.model ?? this.model
+
+    const prompt = buildDetectivePrompt({
+      setting: input.setting,
+      premise: input.premise?.trim() || undefined,
+      language,
+    })
+
+    const completion = await requestCompletion({
+      apiKey: apiKey ?? "",
+      baseUrl,
+      model,
+      fallbackModels: input.fallbackModels,
+      maxTokens: DETECTIVE_MAX_OUTPUT_TOKENS,
+      messages: [{ role: "user", content: prompt }],
+      schema: {
+        name: "detective",
+        schema: z.toJSONSchema(DetectiveSchema) as Record<string, unknown>,
+      },
+    })
+    if (completion.isErr()) return Result.err(completion.error)
+
+    const parsed = Result.try({
+      try: () => DetectiveSchema.parse(JSON.parse(completion.value)),
+      catch: () => new InvalidDetectiveOutputError({ raw: completion.value }),
+    })
+    if (parsed.isErr()) return Result.err(parsed.error)
+
+    return Result.ok(parsed.value)
   }
 
   async listCases(): Promise<Result<Case[], CaseStoreError>> {

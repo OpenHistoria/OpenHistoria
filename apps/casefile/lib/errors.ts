@@ -2,6 +2,7 @@ import type {
   AccuseError,
   AdvanceError,
   CreateCaseError,
+  GenerateDetectiveError,
 } from "@workspace/detective-engine"
 
 import type { OpenRouterError } from "@/lib/openrouter"
@@ -86,6 +87,20 @@ export const formatCreateCaseError = (error: CreateCaseError): string => {
     case "StoreReadError":
     case "StoreWriteError":
       return "Could not save the case. Your browser storage may be full or blocked."
+    default:
+      return formatCompletionError(error)
+  }
+}
+
+/** Human-readable message for an error generating a detective. */
+export const formatGenerateDetectiveError = (
+  error: GenerateDetectiveError
+): string => {
+  switch (error._tag) {
+    case "MissingApiKey":
+      return "Connect your OpenRouter account to generate a detective."
+    case "InvalidDetectiveOutput":
+      return "The detective came back garbled. Try generating again."
     default:
       return formatCompletionError(error)
   }

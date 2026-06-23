@@ -78,6 +78,20 @@ export const EMPTY_DETECTIVE: Detective = {
   background: "",
 }
 
+/**
+ * Structured-output shape for an invented detective. Every field is required
+ * (the model fills them all); the UI is free to keep or edit any of them.
+ */
+export const DetectiveSchema = z.strictObject({
+  name: z.string(),
+  pronouns: z.string(),
+  role: z.string(),
+  style: z.string(),
+  background: z.string(),
+})
+
+export type DetectiveOutput = z.infer<typeof DetectiveSchema>
+
 /** Whether a detective has enough to start (just a name is enough). */
 export const isPlayableDetective = (detective: Detective): boolean =>
   detective.name.trim().length > 0
