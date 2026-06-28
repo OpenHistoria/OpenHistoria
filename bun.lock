@@ -50,6 +50,7 @@
         "@workspace/adventure-engine": "workspace:*",
         "@workspace/detective-engine": "workspace:*",
         "@workspace/engine": "workspace:*",
+        "@workspace/seduction-engine": "workspace:*",
         "@workspace/ui": "workspace:*",
         "better-result": "^2.9.2",
         "country-flag-icons": "^1.6.17",
@@ -137,6 +138,22 @@
         "globals": "^17.6.0",
         "typescript": "^5",
         "typescript-eslint": "^8.60.0",
+      },
+    },
+    "packages/seduction-engine": {
+      "name": "@workspace/seduction-engine",
+      "version": "0.0.0",
+      "dependencies": {
+        "@workspace/engine": "workspace:*",
+        "better-result": "^2.9.2",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/node": "^20",
+        "@workspace/eslint-config": "workspace:*",
+        "@workspace/typescript-config": "workspace:*",
+        "eslint": "^9",
+        "typescript": "^5",
       },
     },
     "packages/typescript-config": {
@@ -718,6 +735,8 @@
     "@workspace/engine": ["@workspace/engine@workspace:packages/engine"],
 
     "@workspace/eslint-config": ["@workspace/eslint-config@workspace:packages/eslint-config"],
+
+    "@workspace/seduction-engine": ["@workspace/seduction-engine@workspace:packages/seduction-engine"],
 
     "@workspace/typescript-config": ["@workspace/typescript-config@workspace:packages/typescript-config"],
 

@@ -19,6 +19,7 @@
     "@workspace/adventure-engine": "workspace:*",
     "@workspace/detective-engine": "workspace:*",
     "@workspace/engine": "workspace:*",
+    "@workspace/seduction-engine": "workspace:*",
     "@workspace/ui": "workspace:*",
     "better-result": "^2.9.2",
     "country-flag-icons": "^1.6.17",

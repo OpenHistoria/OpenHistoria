@@ -4,11 +4,13 @@ import {
   ArrowRight01Icon,
   Coffee02Icon,
   EarthIcon,
+  FavouriteIcon,
   SearchVisualIcon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons"
 
 import { SocialLinks } from "@/components/social-links"
+import { Backdrop } from "@/components/backdrop"
 
 const GAMES = [
   {
@@ -29,12 +31,18 @@ const GAMES = [
     tagline: "An AI choose-your-own-adventure. Shape the story one choice at a time.",
     icon: SparklesIcon,
   },
+  {
+    href: "/charm",
+    title: "Open Charm",
+    tagline: "An AI romance game. Win someone over one line at a time.",
+    icon: FavouriteIcon,
+  },
 ] as const
 
 export default function Page() {
   return (
     <main className="relative min-h-svh w-full overflow-y-auto bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,theme(colors.primary/12),transparent_60%)]" />
+      <Backdrop />
 
       <div className="relative mx-auto flex min-h-svh w-full max-w-4xl flex-col px-5 py-10">
         <header className="flex items-center justify-between">
@@ -53,7 +61,7 @@ export default function Page() {
             own model through OpenRouter — connect once and play any of them.
           </p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
             {GAMES.map((game) => (
               <Link
                 key={game.href}

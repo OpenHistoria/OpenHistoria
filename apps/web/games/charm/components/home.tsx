@@ -5,49 +5,47 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Add01Icon,
   Delete02Icon,
+  FavouriteIcon,
   PlayIcon,
-  SparklesIcon,
 } from "@hugeicons/core-free-icons"
 
-import { GENRE_LABELS, type Adventure } from "@workspace/adventure-engine"
+import { SCENARIO_LABELS, type Flirtation } from "@workspace/seduction-engine"
 
 import { Button } from "@workspace/ui/components/button"
 import { Spinner } from "@workspace/ui/components/spinner"
 
-import { AdventureScreen } from "@/games/odyssey/components/adventure/adventure-screen"
-import { NewAdventureDialog } from "@/games/odyssey/components/adventure/new-adventure-dialog"
-import { ConnectDialog } from "@/games/odyssey/components/openrouter/connect-dialog"
-import { OpenRouterLogo } from "@/games/odyssey/components/openrouter/openrouter-logo"
-import { useOpenRouter } from "@/games/odyssey/hooks/use-openrouter"
-import { engine } from "@/games/odyssey/lib/engine"
+import { FlirtationScreen } from "@/games/charm/components/charm/flirtation-screen"
+import { NewFlirtationDialog } from "@/games/charm/components/charm/new-flirtation-dialog"
+import { ConnectDialog } from "@/games/charm/components/openrouter/connect-dialog"
+import { OpenRouterLogo } from "@/games/charm/components/openrouter/openrouter-logo"
+import { useOpenRouter } from "@/games/charm/hooks/use-openrouter"
+import { engine } from "@/games/charm/lib/engine"
 import { HubLink } from "@/components/hub-link"
 import { Backdrop } from "@/components/backdrop"
 
 export function Home() {
   const { status } = useOpenRouter()
-  const [adventure, setAdventure] = useState<Adventure | null>(null)
-  const [adventures, setAdventures] = useState<Adventure[]>([])
+  const [flirtation, setFlirtation] = useState<Flirtation | null>(null)
+  const [flirtations, setFlirtations] = useState<Flirtation[]>([])
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
   const [connectOpen, setConnectOpen] = useState(false)
 
   const refresh = async () => {
-    const list = await engine.listAdventures()
+    const list = await engine.listFlirtations()
     if (list.isOk()) {
-      setAdventures(
-        [...list.value].sort((a, b) => b.updatedAt - a.updatedAt)
-      )
+      setFlirtations([...list.value].sort((a, b) => b.updatedAt - a.updatedAt))
     }
   }
 
   useEffect(() => {
     let active = true
     void (async () => {
-      const list = await engine.listAdventures()
+      const list = await engine.listFlirtations()
       if (!active) return
       if (list.isOk()) {
         const sorted = [...list.value].sort((a, b) => b.updatedAt - a.updatedAt)
-        setAdventures(sorted)
+        setFlirtations(sorted)
       }
       setLoading(false)
     })()
@@ -64,35 +62,35 @@ export function Home() {
     setNewOpen(true)
   }
 
-  const onCreated = (created: Adventure) => {
+  const onCreated = (created: Flirtation) => {
     setNewOpen(false)
-    setAdventure(created)
+    setFlirtation(created)
   }
 
   const exitToMenu = () => {
-    setAdventure(null)
+    setFlirtation(null)
     void refresh()
   }
 
-  const deleteAdventure = async (id: string) => {
-    await engine.deleteAdventure(id)
+  const deleteFlirtation = async (id: string) => {
+    await engine.deleteFlirtation(id)
     void refresh()
   }
 
-  if (adventure) {
+  if (flirtation) {
     return (
       <>
-        <AdventureScreen
-          adventure={adventure}
-          onAdventureChange={setAdventure}
+        <FlirtationScreen
+          flirtation={flirtation}
+          onFlirtationChange={setFlirtation}
           onExit={exitToMenu}
-          onNewAdventure={() => {
-            setAdventure(null)
+          onNewFlirtation={() => {
+            setFlirtation(null)
             void refresh()
             setNewOpen(true)
           }}
         />
-        <NewAdventureDialog
+        <NewFlirtationDialog
           open={newOpen}
           onOpenChange={setNewOpen}
           onCreated={onCreated}
@@ -110,7 +108,7 @@ export function Home() {
           <div className="flex items-center gap-3">
             <HubLink />
             <span className="font-heading text-sm font-semibold tracking-[0.25em] text-foreground uppercase">
-              Open Odyssey
+              Open Charm
             </span>
           </div>
           <Button
@@ -125,18 +123,18 @@ export function Home() {
 
         <div className="flex flex-1 flex-col justify-center py-12">
           <h1 className="font-heading text-4xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl">
-            Write your own legend.
+            Win them over.
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted-foreground text-pretty">
-            An AI-driven choose-your-own-adventure. Pick a world, name your
-            hero, and shape the story one choice at a time. Bring your own model
+            An AI-driven romance game. Pick a setting, meet someone worth
+            charming, and earn it one line at a time. Bring your own model
             through OpenRouter.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button size="lg" onClick={startNew}>
-              <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} />
-              New adventure
+              <HugeiconsIcon icon={FavouriteIcon} strokeWidth={2} />
+              New encounter
             </Button>
             {status === "disconnected" && (
               <span className="text-sm text-muted-foreground">
@@ -145,26 +143,26 @@ export function Home() {
             )}
           </div>
 
-          {/* Saved adventures to resume. */}
+          {/* Saved flirtations to resume. */}
           {loading ? (
             <div className="mt-12 flex items-center gap-2 text-muted-foreground">
               <Spinner />
-              Loading your adventures...
+              Loading your encounters...
             </div>
-          ) : adventures.length > 0 ? (
+          ) : flirtations.length > 0 ? (
             <div className="mt-12">
               <h2 className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 Continue
               </h2>
               <ul className="flex flex-col gap-2">
-                {adventures.map((a) => (
+                {flirtations.map((f) => (
                   <li
-                    key={a.id}
+                    key={f.id}
                     className="group flex items-center gap-3 rounded-lg border border-border bg-card/40 px-3.5 py-3 transition-colors hover:bg-card"
                   >
                     <button
                       type="button"
-                      onClick={() => setAdventure(a)}
+                      onClick={() => setFlirtation(f)}
                       className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-start"
                     >
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -172,19 +170,19 @@ export function Home() {
                       </span>
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-sm font-medium text-foreground">
-                          {a.title}
+                          {f.title}
                         </span>
                         <span className="truncate text-xs text-muted-foreground">
-                          {GENRE_LABELS[a.genre]}
-                          {a.status === "ended" ? " · Finished" : ""}
+                          {SCENARIO_LABELS[f.scenario]}
+                          {f.status === "ended" ? " · Ended" : ""}
                         </span>
                       </span>
                     </button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Delete adventure"
-                      onClick={() => void deleteAdventure(a.id)}
+                      aria-label="Delete encounter"
+                      onClick={() => void deleteFlirtation(f.id)}
                       className="opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
@@ -200,13 +198,13 @@ export function Home() {
               className="mt-12 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
             >
               <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-              No adventures yet. Start your first one.
+              No encounters yet. Start your first one.
             </button>
           )}
         </div>
       </div>
 
-      <NewAdventureDialog
+      <NewFlirtationDialog
         open={newOpen}
         onOpenChange={setNewOpen}
         onCreated={onCreated}

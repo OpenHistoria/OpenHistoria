@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
     "@workspace/engine",
     "@workspace/detective-engine",
     "@workspace/adventure-engine",
+    "@workspace/seduction-engine",
   ],
 }
 
