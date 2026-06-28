@@ -5,9 +5,15 @@ const nextConfig: NextConfig = {
     "localhost",
     "127.0.0.1",
     "**.tenki.sh",
-    "openhistoria-drag--11zlzh.eu.sb.tenki.sh",
+    "**.sb.tenki.sh",
+    "**.sb-stg.tenki.sh",
   ],
-  transpilePackages: ["@workspace/ui", "@workspace/engine"],
+  transpilePackages: [
+    "@workspace/ui",
+    "@workspace/engine",
+    "@workspace/detective-engine",
+    "@workspace/adventure-engine",
+  ],
 }
 
 export default nextConfig

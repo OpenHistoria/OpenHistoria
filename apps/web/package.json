@@ -16,6 +16,8 @@
     "@hugeicons/core-free-icons": "^4.2.0",
     "@hugeicons/react": "^1.1.6",
     "@supabase/supabase-js": "^2.108.1",
+    "@workspace/adventure-engine": "workspace:*",
+    "@workspace/detective-engine": "workspace:*",
     "@workspace/engine": "workspace:*",
     "@workspace/ui": "workspace:*",
     "better-result": "^2.9.2",
